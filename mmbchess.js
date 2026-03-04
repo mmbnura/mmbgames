@@ -285,7 +285,6 @@
         Object.assign(state, found.applied.state);
       }
 
-      reviewMeta = { whiteName: game.playerName || 'User', blackName: game.aiName || 'Computer' };
       gameReviewData = {
         initialState: { board: createInitialBoard(), turn: 'w', castling: { wK: true, wQ: true, bK: true, bQ: true }, enPassant: null, halfmoveClock: 0, fullmoveNumber: 1 },
         plies, positions, moveHistory: plies.map(p => p.notation), result: headers.Result || 'PGN Analysis',
@@ -927,6 +926,10 @@ function newGame(difficultyKey) {
       game.gameOver = { ...result, message: msg };
       gameOverTitleEl.textContent = result.type === 'checkmate' ? 'Checkmate' : 'Game Over';
       gameOverBodyEl.textContent = `${msg}. Final move count: ${game.moveHistory.length}.`;
+      reviewMeta = {
+        whiteName: game.playerName || 'User',
+        blackName: game.aiName || 'Computer'
+      };
       gameReviewData = {
         initialState: {
           board: createInitialBoard(),

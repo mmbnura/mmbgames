@@ -1,4 +1,4 @@
-    const APP_VERSION = '0.2';
+    const APP_VERSION = '0.4';
     const PIECE_UNICODE = {
       wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
       bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
@@ -61,6 +61,7 @@
     let game = null;
     let gameReviewData = null;
     let reviewState = null;
+    let reviewMeta = { whiteName: 'White', blackName: 'Black' };
     let selected = null;
     let validMoves = [];
     let pendingPromotion = null;
@@ -112,7 +113,7 @@
         const b = game.moveHistory[i+1] || '';
         moves += `${moveNo}. ${w}${b ? ` ${b}` : ''} `;
       }
-      return `[Event "MMB Chess Casual Game"]\n[Site "Local Browser"]\n[Date "${date}"]\n[White "User"]\n[Black "MMB AI"]\n[Result "${resultTag}"]\n\n${moves.trim()} ${resultTag}`.trim();
+      return `[Event "MMB Chess Casual Game"]\n[Site "Local Browser"]\n[Date "${date}"]\n[White "${game.playerName || 'User'}"]\n[Black "${game.aiName || 'Computer'}"]\n[Result "${resultTag}"]\n\n${moves.trim()} ${resultTag}`.trim();
     }
 
     function loadSavedGames() {
@@ -132,7 +133,11 @@
       saved.unshift({
         id: `g_${Date.now()}`,
         playedAt: new Date().toISOString(),
-        result: game?.gameOver?.message || 'Completed game',
+        result: (() => {
+          if (!game?.gameOver) return 'Completed game';
+          if (game.gameOver.type === 'checkmate') return game.gameOver.winner === game.playerColor ? 'User wins' : 'Computer wins';
+          return game.gameOver.message || 'Draw';
+        })(),
         moves: game?.moveHistory?.length || 0,
         pgn
       });
@@ -227,9 +232,27 @@
       return null;
     }
 
+
+    function parsePgnHeaders(pgnText) {
+      const headers = {};
+      const regex = /\[([^\s]+)\s+"([^"]*)"\]/g;
+      let m;
+      while ((m = regex.exec(pgnText)) !== null) headers[m[1]] = m[2];
+      return headers;
+    }
+
     function prepareReviewFromPGN(pgnText) {
       if (!pgnText || !pgnText.trim()) return;
       const normalizedPgn = pgnText.replace(/\\n/g, '\n');
+      const headers = parsePgnHeaders(normalizedPgn);
+      reviewMeta = {
+        whiteName: headers.White || 'White',
+        blackName: headers.Black || 'Black'
+      };
+      const wNameEl = document.getElementById('whitePlayerName');
+      const bNameEl = document.getElementById('blackPlayerName');
+      if (wNameEl) wNameEl.textContent = reviewMeta.whiteName;
+      if (bNameEl) bNameEl.textContent = reviewMeta.blackName;
       const body = normalizedPgn.replace(/\[[^\]]*\]/g, ' ').replace(/\{[^}]*\}/g, ' ').replace(/\([^)]*\)/g, ' ');
       const rawTokens = body.split(/\s+/).map(t => t.trim()).filter(Boolean);
       const tokens = rawTokens.filter(t => !/^\d+\.(\.\.)?$/.test(t) && !/^1-0$|^0-1$|^1\/2-1\/2$|^\*$/.test(t));
@@ -262,9 +285,10 @@
         Object.assign(state, found.applied.state);
       }
 
+      reviewMeta = { whiteName: game.playerName || 'User', blackName: game.aiName || 'Computer' };
       gameReviewData = {
         initialState: { board: createInitialBoard(), turn: 'w', castling: { wK: true, wQ: true, bK: true, bQ: true }, enPassant: null, halfmoveClock: 0, fullmoveNumber: 1 },
-        plies, positions, moveHistory: plies.map(p => p.notation), result: 'PGN Analysis',
+        plies, positions, moveHistory: plies.map(p => p.notation), result: headers.Result || 'PGN Analysis',
         evals: [], bestMoves: [], bestEvals: [], classifications: []
       };
       analyzeReviewData(false);
@@ -318,6 +342,8 @@ function newGame(difficultyKey) {
         selectedDifficulty: diff,
         playerColor: 'w',
         aiColor: 'b',
+        playerName: 'User',
+        aiName: 'Computer',
         moveHistory: [],
         capturedWhite: [],
         capturedBlack: [],
@@ -1068,6 +1094,10 @@ function newGame(difficultyKey) {
     }
     function buildReviewSummary(startAtBlunder = false) {
       const classifs = [];
+      const whiteNameEl = document.getElementById('whitePlayerName');
+      const blackNameEl = document.getElementById('blackPlayerName');
+      if (whiteNameEl) whiteNameEl.textContent = reviewMeta.whiteName || 'White';
+      if (blackNameEl) blackNameEl.textContent = reviewMeta.blackName || 'Black';
       const playerColor = game?.playerColor || 'w';
       const aiColor = game?.aiColor || 'b';
       const sideAcc = { w: [], b: [] };
@@ -1269,6 +1299,7 @@ function renderReviewBoard(index) {
     on('refreshGamesBtn','click', renderSavedGamesList);
     on('analyzePgnBtn','click', () => prepareReviewFromPGN(pgnInputEl?.value || ''));
     on('backToMenuBtn','click', () => {
+      if (!appContainer()) { window.location.href = 'chess.html'; return; }
       reviewScreenEl?.classList.remove('show');
       const app = appContainer();
       if (app) app.style.display = '';

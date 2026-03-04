@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMB Chess</title>
+  <link rel="stylesheet" href="mmbchess.css" />
+</head>
+<body>
+  <div class="brand-logo"><span class="icon">♞</span><span class="text">MMB Chess <span class="sub">Studio</span></span></div>
+  <div class="brand-menu">
+    <button id="openAnalyzerFromMenuBtn" class="secondary">Game Analyzer</button>
+  </div>
+  <div class="version-footer" id="versionFooter">MMB Chess v0.6</div>
+  <div class="app">
+    <div class="board-area">
+      <div class="board-frame">
+        <div class="labels-files top-files" id="topFiles"></div>
+        <div class="labels-files bottom-files" id="bottomFiles"></div>
+        <div class="labels-ranks left-ranks" id="leftRanks"></div>
+        <div class="labels-ranks right-ranks" id="rightRanks"></div>
+        <div id="board" class="board"></div>
+      </div>
+      <div class="turn-indicator"><span id="turnDot" class="dot"></span><span id="turnText"></span></div>
+    </div>
+    <aside class="side">
+      <div class="card">
+        <h4>Game Status</h4>
+        <div id="statusText" class="status-text"></div>
+      </div>
+      <div class="card">
+        <h4>Difficulty</h4>
+        <div id="difficultyText" class="difficulty"></div>
+      </div>
+      <div class="card">
+        <h4>Timers</h4>
+        <div class="status-text">White: <span id="whiteTimer">00:00</span></div>
+        <div class="status-text">Black: <span id="blackTimer">00:00</span></div>
+      </div>
+      <div class="card">
+        <h4>White Captured</h4>
+        <div id="whiteCaptured" class="captured"></div>
+      </div>
+      <div class="card">
+        <h4>Black Captured</h4>
+        <div id="blackCaptured" class="captured"></div>
+      </div>
+      <div class="card">
+        <h4>Move History</h4>
+        <div id="history" class="history"></div>
+      </div>
+      <button id="newGameBtn">New Game</button>
+      <button id="changeDifficultyBtn" class="secondary">Change Difficulty</button>
+    </aside>
+  </div>
+  <div id="difficultyModal" class="overlay">
+    <div class="modal">
+      <h2>Select Difficulty</h2>
+      <div class="difficulty-list" id="difficultyList"></div>
+    </div>
+  </div>
+  <div id="promotionModal" class="overlay">
+    <div class="modal">
+      <h2>Choose Promotion</h2>
+      <div class="promo-choices" id="promotionChoices"></div>
+    </div>
+  </div>
+  <div id="gameOverModal" class="overlay">
+    <div class="modal">
+      <h2 id="gameOverTitle"></h2>
+      <p id="gameOverBody"></p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button id="playAgainBtn">Play Again</button>
+        <button id="changeDifficultyGameOverBtn" class="secondary">Change Difficulty</button>
+        <button id="reviewGameBtn" class="secondary">📊 Review Game</button>
+        <button id="copyHistoryBtn" class="secondary">Copy Move History</button>
+      </div>
+    </div>
+  </div>
+  <script src="mmbchess.js"></script>
+</body>
+</html>

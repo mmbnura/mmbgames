@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkers</title>
+    <style>
+        :root {
+            --board-size: min(90vw, 70vh);
+            --square-size: calc(var(--board-size) / 8);
+            --piece-size: calc(var(--square-size) * 0.8);
+            --border-width: 3px;
+
+            --color-light-square: #EEE;
+            --color-dark-square: #444;
+            --color-player-piece: #d62828;
+            --color-player-king: #ff6060;
+            --color-computer-piece: #111;
+            --color-computer-king: #333;
+
+            --color-highlight-selected: rgba(76, 175, 80, 0.7);
+            --color-highlight-move: rgba(76, 175, 80, 0.4);
+            --color-highlight-capture: rgba(255, 235, 59, 0.5);
+            
+            --animation-speed: 0.3s;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #222;
+            color: #fff;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        #board-container {
+            position: relative;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, var(--square-size));
+            grid-template-rows: repeat(8, var(--square-size));
+            width: var(--board-size);
+            height: var(--board-size);
+            border: 5px solid #333;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .square {
+            width: var(--square-size);
+            height: var(--square-size);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .square.light { background-color: var(--color-light-square); }
+        .square.dark { background-color: var(--color-dark-square); }
+
+        .piece {
+            width: var(--piece-size);
+            height: var(--piece-size);
+            border-radius: 50%;
+            box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3), 0 3px 5px rgba(0,0,0,0.3);
+            cursor: pointer;
+            position: absolute;
+            transition: transform var(--animation-speed) ease-in-out;
+        }
+        
+        .piece.red { background-color: var(--color-player-piece); }
+        .piece.black { background-color: var(--color-computer-piece); }
+        
+        .piece.king::after {
+            content: 'K';
+            font-weight: bold;
+            font-size: calc(var(--piece-size) / 2);
+            color: #fff;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 0 3px #000;
+        }
+        .piece.red.king { background-color: var(--color-player-king); }
+        .piece.black.king { background-color: var(--color-computer-king); }
+
+        .piece.selected {
+            box-shadow: inset 0 -3px 5px rgba(0,0,0,0.3), 0 3px 5px rgba(0,0,0,0.3), 0 0 0 var(--border-width) var(--color-highlight-selected);
+        }
+        
+        .piece.fade-out {
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity var(--animation-speed) ease-out, transform var(--animation-speed) ease-out;
+        }
+        
+        .piece.promoted {
+            animation: promotion-glow var(--animation-speed) ease-in-out;
+        }
+
+        @keyframes promotion-glow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); box-shadow: 0 0 15px 5px #ffeb3b; }
+        }
+
+        .highlight-move::after {
+            content: '';
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            background-color: var(--color-highlight-move);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        .highlight-capture::after {
+            content: '';
+            position: absolute;
+            width: 40%;
+            height: 40%;
+            background-color: var(--color-highlight-capture);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            width: var(--board-size);
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        #game-info {
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            min-height: 1.5em;
+            width: 100%;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #last-move-arrow {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+        
+        #last-move-arrow.visible {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <div id="game-info">Loading...</div>
+        <div class="status-bar">
+            <div id="player-pieces">Player: 12</div>
+            <div id="computer-pieces">Computer: 12</div>
+        </div>
+        <div id="board-container">
+            <div id="board"></div>
+            <svg id="last-move-arrow" width="100" height="100" viewbox="0 0 100 100" style="display: none;">
+                <defs>
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#ffeb3b" />
+                    </marker>
+                </defs>
+                <line x1="15" y1="50" x2="85" y2="50" stroke="#ffeb3b" stroke-width="8" marker-end="url(#arrowhead)" />
+            </svg>
+        </div>
+        <button id="restart-button">Restart Game</button>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const boardElement = document.getElementById('board');
+        const gameInfoElement = document.getElementById('game-info');
+        const playerPiecesElement = document.getElementById('player-pieces');
+        const computerPiecesElement = document.getElementById('computer-pieces');
+        const restartButton = document.getElementById('restart-button');
+        const lastMoveArrow = document.getElementById('last-move-arrow');
+
+        const PLAYER = 'red';
+        const COMPUTER = 'black';
+        const ROWS = 8;
+        const COLS = 8;
+
+        let gameState = {};
+
+        function initializeState() {
+            gameState = {
+                board: createInitialBoard(),
+                currentPlayer: Math.random() < 0.5 ? PLAYER : COMPUTER,
+                selectedPiece: null,
+                validMoves: [],
+                mustCapture: false,
+                isGameOver: false,
+                turnInProgress: false,
+            };
+        }
+
+        function createInitialBoard() {
+            const board = Array(ROWS).fill(null).map(() => Array(COLS).fill(null));
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if ((row + col) % 2 === 1) {
+                        if (row < 3) {
+                            board[row][col] = { color: COMPUTER, isKing: false };
+                        } else if (row > 4) {
+                            board[row][col] = { color: PLAYER, isKing: false };
+                        }
+                    }
+                }
+            }
+            return board;
+        }
+
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square', (row + col) % 2 === 0 ? 'light' : 'dark');
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+
+                    const pieceData = gameState.board[row][col];
+                    if (pieceData) {
+                        const pieceElement = document.createElement('div');
+                        pieceElement.classList.add('piece', pieceData.color);
+                        if (pieceData.isKing) pieceElement.classList.add('king');
+                        
+                        const pieceId = `piece-${row}-${col}`;
+                        const existingPiece = document.getElementById(pieceId);
+                        if (existingPiece) {
+                            pieceElement.style.transform = existingPiece.style.transform;
+                        }
+                        pieceElement.id = pieceId;
+
+                        square.appendChild(pieceElement);
+                    }
+                    boardElement.appendChild(square);
+                }
+            }
+            highlightValidMoves();
+            updateStatus();
+        }
+        
+        function updateStatus() {
+            const counts = gameState.board.flat().reduce((acc, p) => {
+                if (p) acc[p.color]++;
+                return acc;
+            }, { [PLAYER]: 0, [COMPUTER]: 0 });
+
+            playerPiecesElement.textContent = `Player: ${counts[PLAYER]}`;
+            computerPiecesElement.textContent = `Computer: ${counts[COMPUTER]}`;
+
+            if (gameState.isGameOver) {
+                 if (counts[PLAYER] === 0 || !hasLegalMoves(PLAYER)) {
+                    gameInfoElement.textContent = "Computer Wins!";
+                } else {
+                    gameInfoElement.textContent = "Player Wins!";
+                }
+            } else {
+                gameInfoElement.textContent = `${gameState.currentPlayer === PLAYER ? 'Player' : 'Computer'}'s Turn`;
+            }
+        }
+        
+        function handleSquareClick(event) {
+            if (gameState.isGameOver || gameState.turnInProgress || gameState.currentPlayer !== PLAYER) return;
+
+            const square = event.target.closest('.square');
+            if (!square) return;
+
+            const row = parseInt(square.dataset.row);
+            const col = parseInt(square.dataset.col);
+
+            const isMoveTarget = gameState.validMoves.some(move => move.endRow === row && move.endCol === col);
+
+            if (isMoveTarget) {
+                const move = gameState.validMoves.find(m => m.endRow === row && m.endCol === col);
+                performMove(move);
+            } else {
+                const piece = gameState.board[row][col];
+                if (piece && piece.color === PLAYER) {
+                    selectPiece(row, col);
+                }
+            }
+        }
+        
+        function getPossibleMoves(row, col, board) {
+            const piece = board[row][col];
+            if (!piece) return [];
+            
+            const moves = [];
+            const directions = piece.isKing ? [[-1, -1], [-1, 1], [1, -1], [1, 1]] : (piece.color === PLAYER ? [[-1, -1], [-1, 1]] : [[1, -1], [1, 1]]);
+
+            // Normal moves
+            for (const [dr, dc] of directions) {
+                const newRow = row + dr;
+                const newCol = col + dc;
+                if (isValidSquare(newRow, newCol) && !board[newRow][newCol]) {
+                    moves.push({ startRow: row, startCol: col, endRow: newRow, endCol: newCol, captured: [] });
+                }
+            }
+            
+            // Captures
+            for (const [dr, dc] of directions) {
+                 const middleRow = row + dr;
+                 const middleCol = col + dc;
+                 const endRow = row + 2 * dr;
+                 const endCol = col + 2 * dc;
+
+                 if (isValidSquare(endRow, endCol) && !board[endRow][endCol]) {
+                     const middlePiece = board[middleRow][middleCol];
+                     if (middlePiece && middlePiece.color !== piece.color) {
+                         moves.push({ startRow: row, startCol: col, endRow: endRow, endCol: endCol, captured: [{row: middleRow, col: middleCol}] });
+                     }
+                 }
+            }
+            return moves;
+        }
+
+        function getAllLegalMovesForPlayer(player, board) {
+            let allMoves = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const piece = board[r][c];
+                    if (piece && piece.color === player) {
+                        allMoves.push(...getPossibleMoves(r, c, board));
+                    }
+                }
+            }
+            
+            const captures = allMoves.filter(move => move.captured.length > 0);
+            if (captures.length > 0) {
+                gameState.mustCapture = true;
+                return captures;
+            }
+            gameState.mustCapture = false;
+            return allMoves.filter(move => move.captured.length === 0);
+        }
+
+        function selectPiece(row, col) {
+            if (gameState.turnInProgress) return;
+
+            const allPlayerMoves = getAllLegalMovesForPlayer(PLAYER, gameState.board);
+            if (gameState.mustCapture) {
+                const canThisPieceCapture = allPlayerMoves.some(move => move.startRow === row && move.startCol === col);
+                if (!canThisPieceCapture) return;
+            }
+
+            gameState.selectedPiece = { row, col };
+            const pieceMoves = getPossibleMoves(row, col, gameState.board);
+            
+            if(gameState.mustCapture) {
+                gameState.validMoves = pieceMoves.filter(move => move.captured.length > 0);
+            } else {
+                gameState.validMoves = pieceMoves.filter(move => move.captured.length === 0);
+            }
+            
+            document.querySelectorAll('.piece.selected').forEach(p => p.classList.remove('selected'));
+            if(gameState.board[row][col]){
+                const pieceElement = document.getElementById(`piece-${row}-${col}`);
+                if (pieceElement) pieceElement.classList.add('selected');
+            }
+            renderBoard();
+        }
+        
+        function highlightValidMoves() {
+            document.querySelectorAll('.highlight-move, .highlight-capture').forEach(h => h.classList.remove('highlight-move', 'highlight-capture'));
+
+            if (gameState.selectedPiece) {
+                gameState.validMoves.forEach(move => {
+                    const square = boardElement.querySelector(`[data-row='${move.endRow}'][data-col='${move.endCol}']`);
+                    if (square) {
+                        square.classList.add(move.captured.length > 0 ? 'highlight-capture' : 'highlight-move');
+                    }
+                });
+            }
+        }
+        
+        async function performMove(move) {
+            if (gameState.turnInProgress) return;
+            gameState.turnInProgress = true;
+            hideLastMoveArrow();
+            
+            const { startRow, startCol, endRow, endCol, captured } = move;
+            const piece = gameState.board[startRow][startCol];
+
+            // --- Animation ---
+            const pieceElement = document.getElementById(`piece-${startRow}-${startCol}`);
+            const squareSize = boardElement.offsetWidth / 8;
+            const dx = (endCol - startCol) * squareSize;
+            const dy = (endRow - startRow) * squareSize;
+            pieceElement.style.transform = `translate(${dx}px, ${dy}px)`;
+
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // --- Update State ---
+            gameState.board[startRow][startCol] = null;
+            gameState.board[endRow][endCol] = piece;
+
+            let wasPromoted = false;
+            if ((piece.color === PLAYER && endRow === 0) || (piece.color === COMPUTER && endRow === 7)) {
+                if (!piece.isKing) {
+                    piece.isKing = true;
+                    wasPromoted = true;
+                }
+            }
+
+            // --- Handle Captures ---
+            if (captured.length > 0) {
+                for(const cap of captured) {
+                    const capturedPieceElement = document.getElementById(`piece-${cap.row}-${cap.col}`);
+                    if(capturedPieceElement) {
+                        capturedPieceElement.classList.add('fade-out');
+                    }
+                    gameState.board[cap.row][cap.col] = null;
+                }
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                const furtherCaptures = getPossibleMoves(endRow, endCol, gameState.board)
+                    .filter(m => m.captured.length > 0);
+                
+                if (furtherCaptures.length > 0 && !wasPromoted) {
+                    gameState.selectedPiece = { row: endRow, col: endCol };
+                    gameState.validMoves = furtherCaptures;
+                    gameState.mustCapture = true;
+                    gameState.turnInProgress = false;
+                    renderBoard();
+                    if(gameState.currentPlayer === COMPUTER) {
+                        setTimeout(() => performMove(furtherCaptures[0]), 500);
+                    }
+                    return; 
+                }
+            }
+
+            if (gameState.currentPlayer === COMPUTER) {
+                showLastMoveArrow(startRow, startCol, endRow, endCol);
+            }
+            
+            // --- Reset and switch turn ---
+            gameState.selectedPiece = null;
+            gameState.validMoves = [];
+            gameState.currentPlayer = gameState.currentPlayer === PLAYER ? COMPUTER : PLAYER;
+            
+            renderBoard(); // Render state change after move
+            
+            if (wasPromoted) {
+                const newPieceElement = document.getElementById(`piece-${endRow}-${endCol}`);
+                if (newPieceElement) {
+                    newPieceElement.classList.add('promoted');
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            }
+            
+            checkGameOver();
+            if(!gameState.isGameOver) {
+                if (gameState.currentPlayer === COMPUTER) {
+                    setTimeout(aiMove, Math.random() * 300 + 500);
+                }
+            } else {
+                 updateStatus();
+            }
+            gameState.turnInProgress = false;
+        }
+
+        function aiMove() {
+            if (gameState.isGameOver) return;
+
+            const legalMoves = getAllLegalMovesForPlayer(COMPUTER, gameState.board);
+            if (legalMoves.length === 0) return;
+
+            let bestMove = null;
+            let bestScore = -Infinity;
+
+            for (const move of legalMoves) {
+                const score = evaluateMove(move);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
+            }
+            
+            if (bestMove) {
+                performMove(bestMove);
+            }
+        }
+        
+        function evaluateMove(move) {
+            let score = 0;
+            const { startRow, endRow, endCol, captured } = move;
+
+            // 1. Prioritize captures heavily
+            if (captured.length > 0) {
+                score += 100 * captured.length;
+                // Bonus for capturing a king
+                const capturedPiece = gameState.board[captured[0].row][captured[0].col];
+                if (capturedPiece && capturedPiece.isKing) {
+                    score += 50;
+                }
+            }
+
+            // 2. Prefer king promotion
+            if (endRow === 7 && !gameState.board[startRow][move.startCol].isKing) {
+                score += 200;
+            }
+
+            // 3. Avoid immediate danger (simple check)
+            const tempBoard = JSON.parse(JSON.stringify(gameState.board));
+            tempBoard[endRow][endCol] = tempBoard[startRow][move.startCol];
+            tempBoard[startRow][move.startCol] = null;
+            
+            const opponentResponses = getAllLegalMovesForPlayer(PLAYER, tempBoard);
+            const opponentCaptures = opponentResponses.filter(m => m.captured.length > 0);
+            
+            for(const capture of opponentCaptures) {
+                if(capture.captured[0].row === endRow && capture.captured[0].col === endCol) {
+                    score -= 150; // High penalty for moving into a capture
+                }
+            }
+
+            // 4. Prefer moving forward
+            score += endRow;
+
+            // Add a bit of randomness to make it less predictable
+            score += Math.random() * 5;
+
+            return score;
+        }
+        
+        function checkGameOver() {
+            const playerMoves = hasLegalMoves(PLAYER);
+            const computerMoves = hasLegalMoves(COMPUTER);
+
+            if (!playerMoves || !computerMoves) {
+                gameState.isGameOver = true;
+            }
+        }
+
+        function hasLegalMoves(player) {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const piece = gameState.board[r][c];
+                    if (piece && piece.color === player) {
+                        if (getPossibleMoves(r, c, gameState.board).length > 0) {
+                           const allMoves = getAllLegalMovesForPlayer(player, gameState.board);
+                           return allMoves.length > 0;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+        
+        function showLastMoveArrow(startRow, startCol, endRow, endCol) {
+            const squareSize = boardElement.offsetWidth / 8;
+            const startX = startCol * squareSize + squareSize / 2;
+            const startY = startRow * squareSize + squareSize / 2;
+            const endX = endCol * squareSize + squareSize / 2;
+            const endY = endRow * squareSize + squareSize / 2;
+            
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+            lastMoveArrow.style.display = 'block';
+            lastMoveArrow.style.width = `${length}px`;
+            lastMoveArrow.style.left = `${startX}px`;
+            lastMoveArrow.style.top = `${startY - 50}px`; // 50 is half of svg height
+            lastMoveArrow.style.transformOrigin = '0 50%';
+            lastMoveArrow.style.transform = `rotate(${angle}deg)`;
+            
+            setTimeout(() => lastMoveArrow.classList.add('visible'), 50);
+        }
+
+        function hideLastMoveArrow() {
+            lastMoveArrow.classList.remove('visible');
+        }
+
+        function isValidSquare(row, col) {
+            return row >= 0 && row < ROWS && col >= 0 && col < COLS;
+        }
+        
+        function startGame() {
+            initializeState();
+            renderBoard();
+            hideLastMoveArrow();
+            
+            gameInfoElement.textContent = `${gameState.currentPlayer === PLAYER ? 'Player' : 'Computer'} goes first!`;
+            
+            setTimeout(() => {
+                if (gameState.currentPlayer === COMPUTER) {
+                    aiMove();
+                }
+            }, 1000);
+        }
+
+        boardElement.addEventListener('click', handleSquareClick);
+        restartButton.addEventListener('click', startGame);
+
+        startGame();
+    });
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-    const APP_VERSION = '0.4';
+    const APP_VERSION = '0.6';
     const PIECE_UNICODE = {
       wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
       bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
@@ -144,17 +144,71 @@
       localStorage.setItem(GAMES_STORAGE_KEY, JSON.stringify(saved.slice(0, 100)));
     }
 
+
+    async function exportGamePgn(gameEntry) {
+      if (!gameEntry?.pgn) return;
+      const dt = new Date(gameEntry.playedAt || Date.now());
+      const stamp = `${dt.getFullYear()}${String(dt.getMonth()+1).padStart(2,'0')}${String(dt.getDate()).padStart(2,'0')}_${String(dt.getHours()).padStart(2,'0')}${String(dt.getMinutes()).padStart(2,'0')}${String(dt.getSeconds()).padStart(2,'0')}`;
+      const filename = `mmb_game_${stamp}.pgn`;
+
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: 'MMB Chess PGN', text: gameEntry.pgn });
+          return;
+        }
+      } catch (_) {
+        // Ignore and fallback to download/copy.
+      }
+
+      try {
+        const blob = new Blob([gameEntry.pgn], { type: 'application/x-chess-pgn;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        return;
+      } catch (_) {
+        // fallback to clipboard
+      }
+
+      try {
+        await navigator.clipboard.writeText(gameEntry.pgn);
+        alert('PGN copied to clipboard.');
+      } catch (_) {
+        alert('Unable to export PGN on this browser.');
+      }
+    }
+
     function renderSavedGamesList() {
       const games = loadSavedGames();
       if (!analyzerGameListEl) return;
       analyzerGameListEl.innerHTML = games.length ? '' : '<div style="opacity:.75;">No saved games yet.</div>';
       games.forEach(g => {
+        const row = document.createElement('div');
+        row.className = 'game-list-row';
+
         const btn = document.createElement('button');
-        btn.className = 'secondary';
+        btn.className = 'secondary game-open-btn';
         const dt = new Date(g.playedAt);
         btn.innerHTML = `<div>${dt.toLocaleString()}</div><div style="font-size:12px;opacity:.85;">${g.result} • ${g.moves} plies</div>`;
         btn.addEventListener('click', () => prepareReviewFromPGN(g.pgn));
-        analyzerGameListEl.appendChild(btn);
+
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'secondary game-share-btn';
+        shareBtn.textContent = 'Share';
+        shareBtn.title = 'Export this game as PGN';
+        shareBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          exportGamePgn(g);
+        });
+
+        row.appendChild(btn);
+        row.appendChild(shareBtn);
+        analyzerGameListEl.appendChild(row);
       });
     }
 
@@ -185,9 +239,10 @@
       };
     }
 
-    function findMoveMatchingSan(state, sanToken) {
+    function findMatchingMovesForSan(state, sanToken) {
       const legal = generateAllLegalMoves(state, state.turn);
       const parsed = parseSanToken(sanToken);
+      const matches = [];
 
       // Fallback to notation-based compare for unusual SAN cases.
       if (!parsed) {
@@ -197,9 +252,9 @@
           const movedPiece = state.board[m.fromR][m.fromC];
           const applied = applyMove(state, m, promo);
           const note = notationForMove(state, m, applied.state, movedPiece, applied.captured, promo);
-          if (normalizeSan(note) === target) return { move: m, applied, note };
+          if (normalizeSan(note) === target) matches.push({ move: m, applied, note });
         }
-        return null;
+        return matches;
       }
 
       for (const m of legal) {
@@ -218,18 +273,20 @@
           const isCapture = !!targetPiece;
           if (parsed.isCapture !== isCapture) continue;
 
-          if (parsed.promotion && (!m.promotion || parsed.promotion !== 'Q')) {
-            // Current analyzer promotes to queen only; reject non-queen promotions for now.
-            continue;
-          }
+          if (parsed.promotion && (!m.promotion || parsed.promotion !== 'Q')) continue;
         }
 
         const promo = m.promotion ? 'Q' : null;
         const applied = applyMove(state, m, promo);
         const note = notationForMove(state, m, applied.state, movedPiece, applied.captured, promo);
-        return { move: m, applied, note };
+        matches.push({ move: m, applied, note });
       }
-      return null;
+      return matches;
+    }
+
+    function findMoveMatchingSan(state, sanToken) {
+      const m = findMatchingMovesForSan(state, sanToken);
+      return m.length ? m[0] : null;
     }
 
 
@@ -269,20 +326,39 @@
 
       const positions = [];
       const plies = [];
-      for (const tok of tokens) {
-        const found = findMoveMatchingSan(state, tok);
-        if (!found) {
-          alert(`Could not parse PGN move: ${tok}`);
-          return;
+      let furthest = 0;
+      let nodes = 0;
+
+      function replayWithBacktracking(currState, idx) {
+        if (idx >= tokens.length) return true;
+        furthest = Math.max(furthest, idx);
+
+        const candidates = findMatchingMovesForSan(currState, tokens[idx]);
+        for (const found of candidates) {
+          nodes += 1;
+          if (nodes > 60000) return false;
+
+          const nextState = found.applied.state;
+          positions.push(cloneGameState(currState));
+          plies.push({
+            fromR: found.move.fromR, fromC: found.move.fromC, toR: found.move.toR, toC: found.move.toC,
+            notation: found.note, movedPiece: currState.board[found.move.fromR][found.move.fromC], captured: found.applied.captured,
+            boardAfter: nextState.board.map(r => [...r]), turnAfter: nextState.turn,
+            promotion: found.move.promotion ? 'Q' : null, castle: found.move.castle || null
+          });
+
+          if (replayWithBacktracking(nextState, idx + 1)) return true;
+          positions.pop();
+          plies.pop();
         }
-        positions.push(cloneGameState(state));
-        plies.push({
-          fromR: found.move.fromR, fromC: found.move.fromC, toR: found.move.toR, toC: found.move.toC,
-          notation: found.note, movedPiece: state.board[found.move.fromR][found.move.fromC], captured: found.applied.captured,
-          boardAfter: found.applied.state.board.map(r => [...r]), turnAfter: found.applied.state.turn,
-          promotion: found.move.promotion ? 'Q' : null, castle: found.move.castle || null
-        });
-        Object.assign(state, found.applied.state);
+        return false;
+      }
+
+      const ok = replayWithBacktracking(state, 0);
+      if (!ok) {
+        const badTok = tokens[furthest] || tokens[tokens.length - 1] || 'unknown';
+        alert(`Could not parse PGN move: ${badTok}`);
+        return;
       }
 
       gameReviewData = {

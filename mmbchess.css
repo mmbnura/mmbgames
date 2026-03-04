@@ -280,6 +280,24 @@
     .game-list { max-height:260px; overflow:auto; display:grid; gap:6px; }
     .game-list button { text-align:left; font-weight:600; }
 
+    .game-list-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      align-items: stretch;
+    }
+    .game-open-btn {
+      width: 100%;
+    }
+    .game-share-btn {
+      padding: 8px 10px;
+      min-width: 68px;
+      font-size: 12px;
+      background: #3b4b8f;
+      border: 1px solid #5b6fc6;
+    }
+
+
     @media (max-width: 980px) {
       .app { flex-direction: column; align-items: center; }
       .side { width: min(94vw, 700px); max-height: unset; }

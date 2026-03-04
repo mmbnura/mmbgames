@@ -58,7 +58,6 @@
     .bottom-files { grid-column: 2; grid-row: 3; }
     .left-ranks { grid-column: 1; grid-row: 2; }
     .right-ranks { grid-column: 3; grid-row: 2; }
-
     .board {
       grid-column: 2;
       grid-row: 2;
@@ -89,7 +88,6 @@
       0%,100% { box-shadow: inset 0 0 0 999px rgba(255, 0, 0, 0.2); }
       50% { box-shadow: inset 0 0 0 999px rgba(255, 0, 0, 0.75); }
     }
-
     .piece {
       font-size: clamp(24px, 5.9vmin, 54px);
       line-height: 1;
@@ -99,7 +97,6 @@
     }
     .piece.white { color: #fff; text-shadow: 0 0 2px #000, 1px 1px 2px #000; }
     .piece.black { color: #000; text-shadow: 0 0 2px #fff, 1px 1px 2px #fff; }
-
     .move-dot {
       width: 26%;
       height: 26%;
@@ -117,7 +114,6 @@
       z-index: 1;
       pointer-events: none;
     }
-
     .side {
       width: 250px;
       background: var(--panel);
@@ -174,7 +170,6 @@
       border: 1px solid #666;
       background: #fff;
     }
-
     .overlay {
       position: fixed;
       inset: 0;
@@ -188,7 +183,6 @@
     }
     .overlay.show { display: flex; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
     .modal {
       width: min(95vw, 520px);
       background: #20243d;
@@ -212,7 +206,6 @@
     .difficulty-item:hover { border-color: #5ad1ff; }
     .promo-choices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     .promo-btn { font-size: 34px; padding: 8px; background: #171a31; border: 1px solid #3c4270; }
-
     .floating-piece {
       position: fixed;
       z-index: 40;
@@ -226,7 +219,6 @@
       pointer-events: none;
       transition: transform 200ms ease, opacity 200ms ease;
     }
-
     @media (max-width: 980px) {
       .app { flex-direction: column; align-items: center; }
       .side { width: min(94vw, 700px); max-height: unset; }
@@ -246,7 +238,6 @@
       </div>
       <div class="turn-indicator"><span id="turnDot" class="dot"></span><span id="turnText"></span></div>
     </div>
-
     <aside class="side">
       <div class="card">
         <h4>Game Status</h4>
@@ -255,6 +246,11 @@
       <div class="card">
         <h4>Difficulty</h4>
         <div id="difficultyText" class="difficulty"></div>
+      </div>
+      <div class="card">
+        <h4>Timers</h4>
+        <div class="status-text">White: <span id="whiteTimer">00:00</span></div>
+        <div class="status-text">Black: <span id="blackTimer">00:00</span></div>
       </div>
       <div class="card">
         <h4>White Captured</h4>
@@ -272,32 +268,75 @@
       <button id="changeDifficultyBtn" class="secondary">Change Difficulty</button>
     </aside>
   </div>
-
   <div id="difficultyModal" class="overlay show">
     <div class="modal">
       <h2>Select Difficulty</h2>
       <div class="difficulty-list" id="difficultyList"></div>
     </div>
   </div>
-
   <div id="promotionModal" class="overlay">
     <div class="modal">
       <h2>Choose Promotion</h2>
       <div class="promo-choices" id="promotionChoices"></div>
     </div>
   </div>
-
   <div id="gameOverModal" class="overlay">
     <div class="modal">
       <h2 id="gameOverTitle"></h2>
       <p id="gameOverBody"></p>
-      <div style="display:flex; gap:10px;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <button id="playAgainBtn">Play Again</button>
-        <button id="sameDifficultyBtn" class="secondary">Same Difficulty</button>
+        <button id="changeDifficultyGameOverBtn" class="secondary">Change Difficulty</button>
+        <button id="reviewGameBtn" class="secondary">📊 Review Game</button>
+        <button id="copyHistoryBtn" class="secondary">Copy Move History</button>
       </div>
     </div>
   </div>
-
+  <div id="reviewScreen" class="overlay">
+    <div class="modal" style="width:min(98vw,1280px);height:min(96vh,920px);display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <h2 style="margin:0;">Game Review</h2>
+        <button id="backToMenuBtn" class="secondary">← Back to Menu</button>
+      </div>
+      <div id="reviewLoading" class="card" style="margin-top:10px;">
+        <div id="reviewLoadingText">Analyzing game...</div>
+        <div style="height:10px;background:#11152b;border-radius:999px;overflow:hidden;margin-top:8px;"><div id="reviewProgressBar" style="height:100%;width:0;background:#5ad1ff"></div></div>
+      </div>
+      <div id="reviewSummary" style="display:none;flex:1;overflow:auto;padding-top:10px;">
+        <h2>Game Review Complete</h2>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div class="card" style="flex:1;min-width:220px;"><h4>Player (White)</h4><div id="whiteAccuracy"></div><div id="whiteClassSummary"></div></div>
+          <div class="card" style="flex:1;min-width:220px;"><h4>Computer (Black)</h4><div id="blackAccuracy"></div><div id="blackClassSummary"></div></div>
+        </div>
+        <canvas id="evalGraphSummary" width="900" height="120" style="width:100%;height:120px;background:#171a31;border-radius:8px;margin-top:10px;"></canvas>
+        <div class="card" style="margin-top:10px;"><h4>Key Moments</h4><div id="keyMoments"></div></div>
+        <div style="display:flex;gap:10px;margin-top:10px;"><button id="startReviewBtn">Start Review</button><button id="skipBlundersBtn" class="secondary">Skip to Blunders</button></div>
+      </div>
+      <div id="reviewMain" style="display:none;flex:1;min-height:0;padding-top:10px;">
+        <div style="display:flex;gap:14px;height:100%;">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+            <div style="display:flex;gap:8px;align-items:stretch;">
+              <div id="evalBar" style="width:22px;height:min(74vw,66vh);max-height:700px;background:#111;border:1px solid #444;border-radius:6px;overflow:hidden;position:relative;">
+                <div id="evalBarBlack" style="position:absolute;top:0;left:0;width:100%;height:50%;background:#222;"></div>
+                <div id="evalBarWhite" style="position:absolute;bottom:0;left:0;width:100%;height:50%;background:#f0d9b5;"></div>
+              </div>
+              <div class="board-frame" style="width:min(74vw,66vh);height:min(74vw,66vh);">
+                <div class="labels-files top-files" id="reviewTopFiles"></div><div class="labels-files bottom-files" id="reviewBottomFiles"></div><div class="labels-ranks left-ranks" id="reviewLeftRanks"></div><div class="labels-ranks right-ranks" id="reviewRightRanks"></div>
+                <div id="reviewBoard" class="board"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px;"><button id="firstMoveBtn">|◀ First</button><button id="prevMoveBtn" class="secondary">◀ Prev</button><button id="nextMoveBtn" class="secondary">▶ Next</button><button id="lastMoveBtn">Last ▶|</button></div>
+            <div class="card" style="margin-top:8px;width:min(74vw,66vh);"><div id="bestMoveText">Best move was:</div><div id="engineLineText" style="opacity:.86"></div></div>
+          </div>
+          <div style="width:300px;display:flex;flex-direction:column;gap:10px;min-height:0;">
+            <canvas id="evalGraph" width="300" height="120" style="width:100%;height:120px;background:#171a31;border-radius:8px;"></canvas>
+            <div class="card"><h4>Classification Summary</h4><div id="classSummary"></div></div>
+            <div class="card" style="min-height:0;flex:1;"><h4>Moves</h4><div id="reviewMoveList" class="history" style="height:100%;"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <script>
     const PIECE_UNICODE = {
       wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
@@ -311,9 +350,7 @@
       { key: 'hard', name: 'Hard', elo: 1800, depth: 3 },
       { key: 'expert', name: 'Expert', elo: 2200, depth: 4 }
     ];
-
     const PIECE_VALUES = { P:100, N:320, B:330, R:500, Q:900, K:20000 };
-
     const PST = {
       P:[
         [0,0,0,0,0,0,0,0],[7,8,8,-4,-4,8,8,7],[5,6,6,10,10,6,6,5],[3,3,4,8,8,4,3,3],[2,2,2,6,6,2,2,2],[1,1,1,2,2,1,1,1],[0,0,0,-8,-8,0,0,0],[0,0,0,0,0,0,0,0]
@@ -334,7 +371,6 @@
         [-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-20,-30,-30,-40,-40,-30,-30,-20],[-10,-20,-20,-20,-20,-20,-20,-10],[20,20,0,0,0,0,20,20],[20,30,10,0,0,10,30,20]
       ]
     };
-
     const boardEl = document.getElementById('board');
     const topFilesEl = document.getElementById('topFiles');
     const bottomFilesEl = document.getElementById('bottomFiles');
@@ -347,22 +383,26 @@
     const whiteCapturedEl = document.getElementById('whiteCaptured');
     const blackCapturedEl = document.getElementById('blackCaptured');
     const historyEl = document.getElementById('history');
-
     const difficultyModal = document.getElementById('difficultyModal');
     const difficultyListEl = document.getElementById('difficultyList');
     const promotionModal = document.getElementById('promotionModal');
     const promotionChoicesEl = document.getElementById('promotionChoices');
     const gameOverModal = document.getElementById('gameOverModal');
-
     const gameOverTitleEl = document.getElementById('gameOverTitle');
     const gameOverBodyEl = document.getElementById('gameOverBody');
-
+    const whiteTimerEl = document.getElementById('whiteTimer');
+    const blackTimerEl = document.getElementById('blackTimer');
+    const reviewScreenEl = document.getElementById('reviewScreen');
+    const reviewBoardEl = document.getElementById('reviewBoard');
     let game = null;
+    let gameReviewData = null;
+    let reviewState = null;
     let selected = null;
     let validMoves = [];
     let pendingPromotion = null;
     let aiThinking = false;
-
+    let gameClockInterval = null;
+    let lastClockTick = 0;
     function buildLabels() {
       topFilesEl.innerHTML = ''; bottomFilesEl.innerHTML = '';
       FILES.forEach(f => {
@@ -375,7 +415,6 @@
         rightRanksEl.innerHTML += `<div>${r}</div>`;
       }
     }
-
     function createInitialBoard() {
       const b = Array.from({ length: 8 }, () => Array(8).fill(null));
       b[0] = ['bR','bN','bB','bQ','bK','bB','bN','bR'];
@@ -384,8 +423,31 @@
       b[7] = ['wR','wN','wB','wQ','wK','wB','wN','wR'];
       return b;
     }
-
-    function newGame(difficultyKey) {
+    
+    function formatClock(ms) {
+      const totalSec = Math.floor(Math.max(0, ms) / 1000);
+      const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+      const s = String(totalSec % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+    function stopGameClock() {
+      if (gameClockInterval) clearInterval(gameClockInterval);
+      gameClockInterval = null;
+    }
+    function startGameClock() {
+      stopGameClock();
+      lastClockTick = performance.now();
+      gameClockInterval = setInterval(() => {
+        if (!game || game.gameOver) return;
+        const now = performance.now();
+        const dt = now - lastClockTick;
+        lastClockTick = now;
+        if (game.turn === 'w') game.whiteTimeMs += dt; else game.blackTimeMs += dt;
+        whiteTimerEl.textContent = formatClock(game.whiteTimeMs);
+        blackTimerEl.textContent = formatClock(game.blackTimeMs);
+      }, 200);
+    }
+function newGame(difficultyKey) {
       const diff = DIFFICULTIES.find(d => d.key === difficultyKey) || DIFFICULTIES[1];
       game = {
         board: createInitialBoard(),
@@ -400,17 +462,21 @@
         capturedBlack: [],
         lastMove: null,
         gameOver: null,
-        pendingCheckFlash: null
+        pendingCheckFlash: null,
+        whiteTimeMs: 0,
+        blackTimeMs: 0,
+        reviewPositions: [],
+        reviewPlies: []
       };
       selected = null;
       validMoves = [];
       pendingPromotion = null;
       aiThinking = false;
       gameOverModal.classList.remove('show');
+      startGameClock();
       render();
       maybeAIMove();
     }
-
     function cloneGameState(state) {
       return {
         ...state,
@@ -423,19 +489,15 @@
         lastMove: state.lastMove ? { ...state.lastMove } : null
       };
     }
-
     function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
     function colorOf(piece) { return piece ? piece[0] : null; }
     function typeOf(piece) { return piece ? piece[1] : null; }
     function enemy(color) { return color === 'w' ? 'b' : 'w'; }
-
     function squareName(r, c) { return `${FILES[c]}${8-r}`; }
-
     function findKing(board, color) {
       for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (board[r][c] === `${color}K`) return [r, c];
       return null;
     }
-
     function isSquareAttacked(state, r, c, byColor) {
       const b = state.board;
       const dir = byColor === 'w' ? -1 : 1;
@@ -472,13 +534,11 @@
       }
       return false;
     }
-
     function isInCheck(state, color) {
       const king = findKing(state.board, color);
       if (!king) return false;
       return isSquareAttacked(state, king[0], king[1], enemy(color));
     }
-
     function generatePseudoMoves(state, fromR, fromC, forAttack = false) {
       const b = state.board;
       const piece = b[fromR][fromC];
@@ -487,7 +547,6 @@
       const t = typeOf(piece);
       const moves = [];
       const add = (toR,toC,opts={}) => { if (inBounds(toR,toC)) moves.push({ fromR, fromC, toR, toC, ...opts }); };
-
       if (t === 'P') {
         const dir = color === 'w' ? -1 : 1;
         const startRow = color === 'w' ? 6 : 1;
@@ -512,7 +571,6 @@
           if (forAttack && inBounds(tr,tc)) add(tr,tc,{ attackOnly:true });
         }
       }
-
       if (t === 'N') {
         for (const [dr,dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]) {
           const tr=fromR+dr, tc=fromC+dc;
@@ -521,7 +579,6 @@
           if (!target || colorOf(target)!==color) add(tr,tc,{ capture:!!target });
         }
       }
-
       if (['B','R','Q'].includes(t)) {
         const dirs=[];
         if (['B','Q'].includes(t)) dirs.push([1,1],[1,-1],[-1,1],[-1,-1]);
@@ -539,7 +596,6 @@
           }
         }
       }
-
       if (t === 'K') {
         for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
           if (!dr && !dc) continue;
@@ -561,21 +617,18 @@
       }
       return moves;
     }
-
     function applyMove(state, move, chosenPromotion = null) {
       const s = cloneGameState(state);
       const piece = s.board[move.fromR][move.fromC];
       const color = colorOf(piece);
       const opp = enemy(color);
       let captured = s.board[move.toR][move.toC];
-
       s.board[move.fromR][move.fromC] = null;
       if (move.enPassant) {
         const capR = move.toR + (color === 'w' ? 1 : -1);
         captured = s.board[capR][move.toC];
         s.board[capR][move.toC] = null;
       }
-
       if (move.castle) {
         if (move.castle === 'K') {
           s.board[move.toR][5] = s.board[move.toR][7];
@@ -585,19 +638,16 @@
           s.board[move.toR][0] = null;
         }
       }
-
       let placed = piece;
       if (move.promotion) {
         const promoType = chosenPromotion || 'Q';
         placed = `${color}${promoType}`;
       }
       s.board[move.toR][move.toC] = placed;
-
       if (captured) {
         if (color === 'w') s.capturedWhite.push(captured);
         else s.capturedBlack.push(captured);
       }
-
       if (piece === 'wK') { s.castling.wK = false; s.castling.wQ = false; }
       if (piece === 'bK') { s.castling.bK = false; s.castling.bQ = false; }
       if (piece === 'wR' && move.fromR === 7 && move.fromC === 0) s.castling.wQ = false;
@@ -608,19 +658,15 @@
       if (captured === 'wR' && move.toR === 7 && move.toC === 7) s.castling.wK = false;
       if (captured === 'bR' && move.toR === 0 && move.toC === 0) s.castling.bQ = false;
       if (captured === 'bR' && move.toR === 0 && move.toC === 7) s.castling.bK = false;
-
       s.enPassant = null;
       if (move.pawnDouble) s.enPassant = { r: (move.fromR + move.toR) / 2, c: move.fromC };
-
       if (typeOf(piece) === 'P' || captured) s.halfmoveClock = 0;
       else s.halfmoveClock += 1;
-
       if (color === 'b') s.fullmoveNumber += 1;
       s.turn = opp;
       s.lastMove = { fromR: move.fromR, fromC: move.fromC, toR: move.toR, toC: move.toC };
       return { state: s, captured, movedPiece: piece, placedPiece: placed };
     }
-
     function legalMovesForPiece(state, r, c) {
       const p = state.board[r][c];
       if (!p || colorOf(p) !== state.turn) return [];
@@ -639,7 +685,6 @@
       }
       return legal;
     }
-
     function generateAllLegalMoves(state, color = state.turn) {
       const moves = [];
       const savedTurn = state.turn;
@@ -651,7 +696,6 @@
       state.turn = savedTurn;
       return moves;
     }
-
     function isInsufficientMaterial(state) {
       const pieces = [];
       for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
@@ -663,7 +707,6 @@
       if (noKings.length === 1 && ['B','N'].includes(typeOf(noKings[0]))) return true;
       return false;
     }
-
     function gameResult(state) {
       const moves = generateAllLegalMoves(state, state.turn);
       const inCheck = isInCheck(state, state.turn);
@@ -673,7 +716,6 @@
       if (state.halfmoveClock >= 100) return { type: 'fifty', winner: null };
       return null;
     }
-
     function notationForMove(prevState, move, nextState, movedPiece, captured, promotionType) {
       const t = typeOf(movedPiece);
       if (move.castle) return move.castle === 'K' ? 'O-O' : 'O-O-O';
@@ -694,7 +736,6 @@
       else if (isInCheck(nextState, nextState.turn)) note += '+';
       return note;
     }
-
     function evaluateBoard(state, levelKey) {
       let score = 0;
       let whiteMob = 0, blackMob = 0;
@@ -746,12 +787,10 @@
             }
             pst -= (3-shields) * 12;
           }
-
           const v = base + pst;
           score += color === 'b' ? v : -v;
         }
       }
-
       const savedTurn = state.turn;
       state.turn = 'w'; whiteMob = generateAllLegalMoves(state, 'w').length;
       state.turn = 'b'; blackMob = generateAllLegalMoves(state, 'b').length;
@@ -761,22 +800,26 @@
       if (levelKey === 'easy') score += (blackMob - whiteMob) * 2;
       return score;
     }
-
-    function minimax(state, depth, alpha, beta, maximizing, levelKey) {
+    function minimax(state, depth, alpha, beta, maximizing, levelKey, searchCtx = null) {
+      if (searchCtx) {
+        searchCtx.nodes += 1;
+        if (searchCtx.nodes >= searchCtx.maxNodes) searchCtx.aborted = true;
+        if ((searchCtx.nodes & 1023) === 0 && (performance.now() - searchCtx.startMs) > searchCtx.maxTimeMs) searchCtx.aborted = true;
+        if (searchCtx.aborted) return evaluateBoard(state, levelKey);
+      }
       const result = gameResult(state);
       if (result) {
         if (result.type === 'checkmate') return maximizing ? -999999 : 999999;
         return 0;
       }
       if (depth === 0) return evaluateBoard(state, levelKey);
-
       const moves = generateAllLegalMoves(state, state.turn);
       if (maximizing) {
         let maxEval = -Infinity;
         for (const m of moves) {
           const promoted = m.promotion ? 'Q' : null;
           const next = applyMove(state, m, promoted).state;
-          const val = minimax(next, depth-1, alpha, beta, false, levelKey);
+          const val = minimax(next, depth-1, alpha, beta, false, levelKey, searchCtx);
           maxEval = Math.max(maxEval, val);
           alpha = Math.max(alpha, val);
           if (beta <= alpha) break;
@@ -787,7 +830,7 @@
         for (const m of moves) {
           const promoted = m.promotion ? 'Q' : null;
           const next = applyMove(state, m, promoted).state;
-          const val = minimax(next, depth-1, alpha, beta, true, levelKey);
+          const val = minimax(next, depth-1, alpha, beta, true, levelKey, searchCtx);
           minEval = Math.min(minEval, val);
           beta = Math.min(beta, val);
           if (beta <= alpha) break;
@@ -795,48 +838,50 @@
         return minEval;
       }
     }
-
     function chooseAIMove(state) {
       const diff = state.selectedDifficulty;
       const moves = generateAllLegalMoves(state, 'b');
       if (!moves.length) return null;
-
       if (diff.key === 'beginner') {
         const captures = moves.filter(m => state.board[m.toR][m.toC] || m.enPassant);
         const pool = Math.random() < 0.35 ? moves : (captures.length ? captures : moves);
         return pool[Math.floor(Math.random() * pool.length)];
       }
-
       if (diff.key === 'easy') {
-        // Depth-1 minimax with lightweight priorities.
         let best = -Infinity, chosen = moves[0];
         for (const m of moves) {
           const next = applyMove(state, m, m.promotion ? 'Q' : null).state;
           let score = evaluateBoard(next, 'easy');
-
-          // Prefer captures and center control explicitly.
           if (state.board[m.toR][m.toC] || m.enPassant) score += 70;
           if ([3,4].includes(m.toR) && [3,4].includes(m.toC)) score += 20;
-
-          // Avoid obvious blunders: discourage moves that leave captured piece hanging.
-          const movedColor = 'b';
-          if (isSquareAttacked(next, m.toR, m.toC, enemy(movedColor))) score -= 35;
+          if (isSquareAttacked(next, m.toR, m.toC, 'w')) score -= 35;
           score += Math.random() * 12;
           if (score > best) { best = score; chosen = m; }
         }
         return chosen;
       }
-
+      const searchLimits = {
+        medium: { maxNodes: 30000, maxTimeMs: 350 },
+        hard: { maxNodes: 50000, maxTimeMs: 650 },
+        expert: { maxNodes: 70000, maxTimeMs: 950 }
+      }[diff.key] || { maxNodes: 25000, maxTimeMs: 300 };
       const depth = diff.depth;
       let bestVal = -Infinity;
       let bestMoves = [];
+      const searchCtx = { nodes: 0, maxNodes: searchLimits.maxNodes, maxTimeMs: searchLimits.maxTimeMs, startMs: performance.now(), aborted: false };
       for (const m of moves) {
         const next = applyMove(state, m, m.promotion ? 'Q' : null).state;
-        const val = minimax(next, depth-1, -Infinity, Infinity, false, diff.key);
+        const val = minimax(next, depth-1, -Infinity, Infinity, false, diff.key, searchCtx);
         if (val > bestVal) { bestVal = val; bestMoves = [m]; }
         else if (val === bestVal) bestMoves.push(m);
+        if (searchCtx.aborted) break;
       }
+      if (!bestMoves.length) return moves[Math.floor(Math.random() * moves.length)];
       return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+    }
+
+    async function chooseAIMoveAsync(state) {
+      return new Promise(resolve => setTimeout(() => resolve(chooseAIMove(state)), 0));
     }
 
     async function animateMove(fromR, fromC, toR, toC, movedPiece, capturedPiece) {
@@ -845,7 +890,6 @@
       if (!fromSq || !toSq) return;
       const fromRect = fromSq.getBoundingClientRect();
       const toRect = toSq.getBoundingClientRect();
-
       if (capturedPiece) {
         const cap = document.createElement('div');
         cap.className = `piece ${colorOf(capturedPiece)==='w'?'white':'black'} captured-fx`;
@@ -864,7 +908,6 @@
         });
         setTimeout(() => cap.remove(), 210);
       }
-
       const fp = document.createElement('div');
       fp.className = `piece ${colorOf(movedPiece)==='w'?'white':'black'} floating-piece`;
       fp.textContent = PIECE_UNICODE[movedPiece];
@@ -876,7 +919,6 @@
       fp.style.alignItems = 'center';
       fp.style.justifyContent = 'center';
       document.body.appendChild(fp);
-
       const dx = toRect.left - fromRect.left;
       const dy = toRect.top - fromRect.top;
       await new Promise(resolve => {
@@ -887,7 +929,6 @@
       });
       fp.remove();
     }
-
     function render() {
       boardEl.innerHTML = '';
       for (let r = 0; r < 8; r++) {
@@ -896,16 +937,13 @@
           sq.className = `square ${(r+c)%2===0?'light':'dark'}`;
           sq.dataset.r = r;
           sq.dataset.c = c;
-
           if (selected && selected.r === r && selected.c === c) sq.classList.add('selected');
           if (game.lastMove && ((game.lastMove.fromR===r&&game.lastMove.fromC===c)||(game.lastMove.toR===r&&game.lastMove.toC===c))) sq.classList.add('last-move');
-
           const king = game.board[r][c];
           if (king && typeOf(king) === 'K' && colorOf(king) === game.turn && isInCheck(game, game.turn)) {
             sq.classList.add('check');
             if (game.pendingCheckFlash && game.pendingCheckFlash.r === r && game.pendingCheckFlash.c === c) sq.classList.add('flash');
           }
-
           const move = validMoves.find(m => m.toR === r && m.toC === c);
           if (move) {
             const target = game.board[r][c] || (move.enPassant ? `${enemy(game.turn)}P` : null);
@@ -919,7 +957,6 @@
               sq.appendChild(dot);
             }
           }
-
           const piece = game.board[r][c];
           if (piece) {
             const sp = document.createElement('span');
@@ -927,29 +964,24 @@
             sp.textContent = PIECE_UNICODE[piece];
             sq.appendChild(sp);
           }
-
           sq.addEventListener('click', () => handleSquareClick(r,c));
           boardEl.appendChild(sq);
         }
       }
-
       turnDotEl.style.background = game.turn === 'w' ? '#fff' : '#000';
       turnTextEl.textContent = game.gameOver ? 'Game Over' : `${game.turn === 'w' ? 'White' : 'Black'} to move`;
-
       const inCheck = isInCheck(game, game.turn);
       let status = `${game.turn === 'w' ? 'White' : 'Black'} to move.`;
       if (inCheck) status += ' Check!';
       if (game.gameOver) status = game.gameOver.message;
       statusTextEl.textContent = status;
-
       difficultyTextEl.textContent = `${game.selectedDifficulty.name} (ELO ~${game.selectedDifficulty.elo})`;
-
       whiteCapturedEl.textContent = game.capturedWhite.map(p => PIECE_UNICODE[p]).join(' ');
       blackCapturedEl.textContent = game.capturedBlack.map(p => PIECE_UNICODE[p]).join(' ');
-
+      whiteTimerEl.textContent = formatClock(game.whiteTimeMs || 0);
+      blackTimerEl.textContent = formatClock(game.blackTimeMs || 0);
       renderHistory();
     }
-
     function renderHistory() {
       historyEl.innerHTML = '<div class="hdr">#</div><div class="hdr">White</div><div class="hdr">Black</div>';
       for (let i = 0; i < game.moveHistory.length; i += 2) {
@@ -960,7 +992,6 @@
       }
       historyEl.scrollTop = historyEl.scrollHeight;
     }
-
     async function makeMove(move, promotionChoice = null) {
       if (game.gameOver) return;
       const movingPiece = game.board[move.fromR][move.fromC];
@@ -969,18 +1000,23 @@
         const capR = move.toR + (game.turn === 'w' ? 1 : -1);
         captured = game.board[capR][move.toC];
       }
-
       await animateMove(move.fromR, move.fromC, move.toR, move.toC, movingPiece, captured);
       const prev = cloneGameState(game);
       const applied = applyMove(game, move, promotionChoice);
       game = applied.state;
-
       const notation = notationForMove(prev, move, game, movingPiece, applied.captured, promotionChoice);
       game.moveHistory.push(notation);
-
+      game.reviewPositions.push(prev);
+      game.reviewPlies.push({
+        fromR: move.fromR, fromC: move.fromC, toR: move.toR, toC: move.toC,
+        notation, movedPiece: movingPiece, captured: applied.captured,
+        boardAfter: game.board.map(row => [...row]),
+        turnAfter: game.turn,
+        promotion: promotionChoice,
+        castle: move.castle || null
+      });
       selected = null;
       validMoves = [];
-
       const result = gameResult(game);
       if (result) {
         finishGame(result);
@@ -994,7 +1030,6 @@
       render();
       maybeAIMove();
     }
-
     function finishGame(result) {
       let msg = '';
       if (result.type === 'checkmate') msg = `Checkmate — ${result.winner === 'w' ? 'White' : 'Black'} wins`;
@@ -1002,12 +1037,29 @@
       if (result.type === 'insufficient') msg = 'Draw by insufficient material';
       if (result.type === 'fifty') msg = 'Draw by 50-move rule';
       game.gameOver = { ...result, message: msg };
-
       gameOverTitleEl.textContent = result.type === 'checkmate' ? 'Checkmate' : 'Game Over';
       gameOverBodyEl.textContent = `${msg}. Final move count: ${game.moveHistory.length}.`;
+      gameReviewData = {
+        initialState: {
+          board: createInitialBoard(),
+          turn: 'w',
+          castling: { wK: true, wQ: true, bK: true, bQ: true },
+          enPassant: null,
+          halfmoveClock: 0,
+          fullmoveNumber: 1
+        },
+        plies: game.reviewPlies.map(m => ({ ...m, boardAfter: m.boardAfter.map(r => [...r]) })),
+        positions: game.reviewPositions.map(st => cloneGameState(st)),
+        moveHistory: [...game.moveHistory],
+        result: msg,
+        evals: [],
+        bestMoves: [],
+        bestEvals: [],
+        classifications: []
+      };
+      stopGameClock();
       gameOverModal.classList.add('show');
     }
-
     function handleSquareClick(r,c) {
       if (!game || game.gameOver || aiThinking || game.turn !== 'w' || pendingPromotion) return;
       const p = game.board[r][c];
@@ -1023,7 +1075,6 @@
           return;
         }
       }
-
       if (p && colorOf(p) === 'w') {
         selected = { r, c };
         validMoves = legalMovesForPiece(game, r, c);
@@ -1033,7 +1084,6 @@
       }
       render();
     }
-
     function openPromotionModal(color) {
       promotionChoicesEl.innerHTML = '';
       const options = ['Q','R','B','N'];
@@ -1051,12 +1101,11 @@
       }
       promotionModal.classList.add('show');
     }
-
     function maybeAIMove() {
       if (!game || game.gameOver || game.turn !== 'b') return;
       aiThinking = true;
       setTimeout(async () => {
-        const move = chooseAIMove(game);
+        const move = await chooseAIMoveAsync(game);
         aiThinking = false;
         if (!move) {
           const result = gameResult(game);
@@ -1068,7 +1117,211 @@
         await makeMove(move, promote);
       }, 500);
     }
-
+    function moveToString(m) {
+      if (!m) return '--';
+      return `${squareName(m.fromR, m.fromC)}→${squareName(m.toR, m.toC)}`;
+    }
+    function classifyMove(cpLoss) {
+      if (cpLoss <= 10) return { label: 'Best', icon: '★', color: '#5c8a3c' };
+      if (cpLoss <= 30) return { label: 'Excellent', icon: '✓', color: '#96bc4b' };
+      if (cpLoss <= 100) return { label: 'Good', icon: '•', color: '#d6dbe8' };
+      if (cpLoss <= 200) return { label: 'Inaccuracy', icon: '!', color: '#f0c15b' };
+      if (cpLoss <= 400) return { label: 'Mistake', icon: '?', color: '#e07b37' };
+      return { label: 'Blunder', icon: '??', color: '#ca3431' };
+    }
+    function accuracyFromLoss(cpLoss) {
+      return Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * cpLoss) - 3.1668));
+    }
+    function analyzeReviewData(startAtBlunder = false) {
+      if (!gameReviewData) return;
+      document.querySelector('.app').style.display = 'none';
+      reviewScreenEl.classList.add('show');
+      document.getElementById('reviewLoading').style.display = 'block';
+      document.getElementById('reviewSummary').style.display = 'none';
+      document.getElementById('reviewMain').style.display = 'none';
+      const total = gameReviewData.plies.length;
+      let i = 0;
+      gameReviewData.evals = [];
+      gameReviewData.bestMoves = [];
+      gameReviewData.bestEvals = [];
+      const step = () => {
+        if (i >= total) {
+          buildReviewSummary(startAtBlunder);
+          return;
+        }
+        const st = cloneGameState(gameReviewData.positions[i]);
+        const all = generateAllLegalMoves(st, st.turn);
+        let bestMove = null;
+        let bestEval = st.turn === 'w' ? -Infinity : Infinity;
+        for (const m of all) {
+          const next = applyMove(st, m, m.promotion ? 'Q' : null).state;
+          const whiteEval = -evaluateBoard(next, 'expert');
+          if (st.turn === 'w') {
+            if (whiteEval > bestEval) { bestEval = whiteEval; bestMove = m; }
+          } else {
+            if (whiteEval < bestEval) { bestEval = whiteEval; bestMove = m; }
+          }
+        }
+        const actualEval = -evaluateBoard({ ...st, board: gameReviewData.plies[i].boardAfter, turn: gameReviewData.plies[i].turnAfter, castling: st.castling, enPassant: st.enPassant, halfmoveClock: st.halfmoveClock, fullmoveNumber: st.fullmoveNumber }, 'expert');
+        gameReviewData.bestMoves.push(bestMove);
+        gameReviewData.bestEvals.push(Math.max(-1000, Math.min(1000, Math.round(bestEval))));
+        gameReviewData.evals.push(Math.max(-1000, Math.min(1000, Math.round(actualEval))));
+        i++;
+        document.getElementById('reviewLoadingText').textContent = `Analyzing game... move ${i}/${total}`;
+        document.getElementById('reviewProgressBar').style.width = `${(i/Math.max(1,total))*100}%`;
+        setTimeout(step, 0);
+      };
+      step();
+    }
+    function drawEvalGraph(canvasId, currentIndex = -1) {
+      const c = document.getElementById(canvasId);
+      const ctx = c.getContext('2d');
+      const w = c.width, h = c.height;
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle = '#171a31'; ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle = '#6b7094'; ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+      const vals = gameReviewData?.evals || [];
+      if (!vals.length) return;
+      const pts = vals.map((v,idx)=>{
+        const x = vals.length===1 ? w/2 : (idx/(vals.length-1))*w;
+        const y = h/2 - (Math.max(-10,Math.min(10,v/100))/10)*(h/2-8);
+        return [x,y];
+      });
+      ctx.strokeStyle = '#f0d9b5'; ctx.lineWidth = 2; ctx.beginPath();
+      pts.forEach((p,idx)=>{ if(idx===0) ctx.moveTo(...p); else { const prev=pts[idx-1]; const cx=(prev[0]+p[0])/2; ctx.quadraticCurveTo(cx,prev[1],p[0],p[1]); }});
+      ctx.stroke();
+      if (currentIndex >= 0) {
+        const x = vals.length===1 ? w/2 : (currentIndex/(vals.length-1))*w;
+        ctx.strokeStyle = 'yellow'; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
+      }
+      c.onclick = (e) => {
+        if (!reviewState || reviewState.phase !== 'main') return;
+        const rect = c.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const idx = Math.max(0, Math.min(vals.length-1, Math.round((x/rect.width)*(vals.length-1))));
+        setReviewIndex(idx+1);
+      };
+    }
+    function buildReviewSummary(startAtBlunder = false) {
+      const classifs = [];
+      let wAcc = [], bAcc = [];
+      for (let i=0;i<gameReviewData.plies.length;i++) {
+        const mover = i % 2 === 0 ? 'w' : 'b';
+        const actual = gameReviewData.evals[i];
+        const best = gameReviewData.bestEvals[i];
+        const cpLoss = mover === 'w' ? Math.max(0, best - actual) : Math.max(0, actual - best);
+        let cls = classifyMove(cpLoss);
+        if (cls.label === 'Best' && gameReviewData.plies[i].captured && !gameReviewData.bestMoves[i]?.capture) cls = { label:'Brilliant', icon:'★★', color:'#1baca6' };
+        classifs.push({ ...cls, cpLoss, moveIndex: i });
+        const acc = accuracyFromLoss(cpLoss);
+        if (mover === 'w') wAcc.push(acc); else bAcc.push(acc);
+      }
+      gameReviewData.classifications = classifs;
+      const wa = wAcc.length ? (wAcc.reduce((a,b)=>a+b,0)/wAcc.length) : 100;
+      const ba = bAcc.length ? (bAcc.reduce((a,b)=>a+b,0)/bAcc.length) : 100;
+      document.getElementById('whiteAccuracy').innerHTML = `<strong style="color:${wa>=90?'#5c8a3c':wa>=70?'#f0c15b':wa>=50?'#e07b37':'#ca3431'}">${wa.toFixed(1)}%</strong>`;
+      document.getElementById('blackAccuracy').innerHTML = `<strong style="color:${ba>=90?'#5c8a3c':ba>=70?'#f0c15b':ba>=50?'#e07b37':'#ca3431'}">${ba.toFixed(1)}%</strong>`;
+      const counts = {};
+      classifs.forEach(c=>counts[c.label]=(counts[c.label]||0)+1);
+      const sumHtml = Object.entries(counts).map(([k,v])=>`${k}: ${v}`).join('<br>');
+      document.getElementById('whiteClassSummary').innerHTML = sumHtml;
+      document.getElementById('blackClassSummary').innerHTML = sumHtml;
+      const swings = classifs.map((c,i)=>({i,s:Math.abs((gameReviewData.evals[i]||0)-(gameReviewData.evals[i-1]||0))})).sort((a,b)=>b.s-a.s).slice(0,3);
+      document.getElementById('keyMoments').innerHTML = swings.map(k=>{
+        const p = gameReviewData.plies[k.i];
+        return `Move ${k.i+1}: ${p.notation}, eval swing ${(k.s/100).toFixed(1)} | best ${moveToString(gameReviewData.bestMoves[k.i])}`;
+      }).join('<br>');
+      drawEvalGraph('evalGraphSummary');
+      document.getElementById('reviewLoading').style.display = 'none';
+      document.getElementById('reviewSummary').style.display = 'block';
+      reviewState = { phase: 'summary' };
+      if (startAtBlunder) {
+        const idx = classifs.findIndex(c => c.label === 'Blunder' || c.label === 'Mistake');
+        startReview(Math.max(1, idx+1));
+      }
+    }
+    function renderReviewBoard(index) {
+      const board = index === 0 ? createInitialBoard() : gameReviewData.plies[index-1].boardAfter;
+      reviewBoardEl.innerHTML = '';
+      for (let r=0;r<8;r++) for (let c=0;c<8;c++) {
+        const sq = document.createElement('div');
+        sq.className = `square ${(r+c)%2===0?'light':'dark'}`;
+        const last = index>0 ? gameReviewData.plies[index-1] : null;
+        if (last && ((last.fromR===r&&last.fromC===c)||(last.toR===r&&last.toC===c))) sq.classList.add('last-move');
+        const p = board[r][c];
+        if (p) {
+          const sp = document.createElement('span');
+          sp.className = `piece ${colorOf(p)==='w'?'white':'black'}`;
+          sp.textContent = PIECE_UNICODE[p];
+          sq.appendChild(sp);
+        }
+        if (last && last.toR===r && last.toC===c) {
+          const cls = gameReviewData.classifications[index-1];
+          const dot = document.createElement('div');
+          dot.style.width='12px'; dot.style.height='12px'; dot.style.borderRadius='50%'; dot.style.background=cls?.color||'#5ad1ff';
+          dot.style.position='absolute'; dot.style.bottom='5px'; dot.style.right='5px'; sq.appendChild(dot);
+          if (cls && (cls.label==='Mistake' || cls.label==='Blunder')) sq.style.boxShadow='inset 0 0 0 999px rgba(255,0,0,0.18)';
+        }
+        reviewBoardEl.appendChild(sq);
+      }
+    }
+    function renderReviewMoveList(currentIdx) {
+      const el = document.getElementById('reviewMoveList');
+      el.innerHTML = '<div class="hdr">#</div><div class="hdr">White</div><div class="hdr">Black</div>';
+      for (let i=0;i<gameReviewData.plies.length;i+=2) {
+        const n = Math.floor(i/2)+1;
+        const w = gameReviewData.plies[i];
+        const b = gameReviewData.plies[i+1];
+        const wc = gameReviewData.classifications[i];
+        const bc = gameReviewData.classifications[i+1];
+        el.innerHTML += `<div>${n}.</div><div data-jump="${i+1}" style="cursor:pointer;${currentIdx===i+1?'background:#2b315a':''}"><span style="color:${wc?.color||'#fff'}">${wc?.icon||''}</span> ${w?.notation||''}</div><div data-jump="${i+2}" style="cursor:pointer;${currentIdx===i+2?'background:#2b315a':''}"><span style="color:${bc?.color||'#fff'}">${bc?.icon||''}</span> ${b?.notation||''}</div>`;
+      }
+      el.querySelectorAll('[data-jump]').forEach(n=>n.onclick=()=>setReviewIndex(Number(n.dataset.jump)));
+    }
+    function setReviewIndex(index) {
+      if (!reviewState || reviewState.phase !== 'main') return;
+      reviewState.index = Math.max(0, Math.min(gameReviewData.plies.length, index));
+      const i = reviewState.index;
+      renderReviewBoard(i);
+      renderReviewMoveList(i);
+      drawEvalGraph('evalGraph', Math.max(0, i-1));
+      const cp = i>0 ? gameReviewData.evals[i-1] : 0;
+      const norm = Math.max(-10, Math.min(10, cp/100));
+      const whitePct = ((norm + 10) / 20) * 100;
+      document.getElementById('evalBarWhite').style.height = `${whitePct}%`;
+      document.getElementById('evalBarBlack').style.height = `${100-whitePct}%`;
+      const cls = i>0 ? gameReviewData.classifications[i-1] : null;
+      const played = i>0 ? gameReviewData.plies[i-1] : null;
+      const best = i>0 ? gameReviewData.bestMoves[i-1] : null;
+      if (played && cls) {
+        const bestEval = gameReviewData.bestEvals[i-1]/100;
+        const actualEval = gameReviewData.evals[i-1]/100;
+        const msg = (cls.label==='Best'||cls.label==='Excellent'||cls.label==='Brilliant')
+          ? `✅ ${cls.label} move! (${actualEval.toFixed(1)})`
+          : `❌ You played ${played.notation} ${cls.icon}. Best was ${moveToString(best)} (${bestEval.toFixed(1)})`;
+        document.getElementById('bestMoveText').textContent = `Best move was: ${moveToString(best)} | ${msg}`;
+        document.getElementById('engineLineText').textContent = `Engine line: ${moveToString(best)} ...`;
+      }
+    }
+    function startReview(startIndex = 0) {
+      document.getElementById('reviewSummary').style.display = 'none';
+      document.getElementById('reviewMain').style.display = 'block';
+      reviewState = { phase: 'main', index: startIndex };
+      buildLabelsForReview();
+      setReviewIndex(startIndex);
+      const counts = {};
+      gameReviewData.classifications.forEach(c=>counts[c.label]=(counts[c.label]||0)+1);
+      document.getElementById('classSummary').innerHTML = Object.entries(counts).map(([k,v])=>`${k}: ${v}`).join('<br>');
+    }
+    function buildLabelsForReview() {
+      const tf = document.getElementById('reviewTopFiles');
+      const bf = document.getElementById('reviewBottomFiles');
+      const lr = document.getElementById('reviewLeftRanks');
+      const rr = document.getElementById('reviewRightRanks');
+      tf.innerHTML = bf.innerHTML = FILES.map(f=>`<div>${f}</div>`).join('');
+      let ranks=''; for (let r=8;r>=1;r--) ranks += `<div>${r}</div>`;
+      lr.innerHTML = rr.innerHTML = ranks;
+    }
     function setupDifficultyModal() {
       difficultyListEl.innerHTML = '';
       DIFFICULTIES.forEach(d => {
@@ -1082,18 +1335,43 @@
         difficultyListEl.appendChild(row);
       });
     }
-
     document.getElementById('newGameBtn').addEventListener('click', () => newGame(game?.selectedDifficulty?.key || 'easy'));
     document.getElementById('changeDifficultyBtn').addEventListener('click', () => difficultyModal.classList.add('show'));
     document.getElementById('playAgainBtn').addEventListener('click', () => {
       gameOverModal.classList.remove('show');
-      difficultyModal.classList.add('show');
-    });
-    document.getElementById('sameDifficultyBtn').addEventListener('click', () => {
-      gameOverModal.classList.remove('show');
       newGame(game?.selectedDifficulty?.key || 'easy');
     });
-
+    document.getElementById('changeDifficultyGameOverBtn').addEventListener('click', () => {
+      gameOverModal.classList.remove('show');
+      difficultyModal.classList.add('show');
+    });
+    document.getElementById('copyHistoryBtn').addEventListener('click', async () => {
+      if (!game?.moveHistory?.length) return;
+      const txt = game.moveHistory.map((m,i)=>`${i+1}. ${m}`).join('\n');
+      await navigator.clipboard.writeText(txt);
+      document.getElementById('copyHistoryBtn').textContent = 'Copied!';
+      setTimeout(()=>document.getElementById('copyHistoryBtn').textContent='Copy Move History',1000);
+    });
+    document.getElementById('reviewGameBtn').addEventListener('click', () => {
+      gameOverModal.classList.remove('show');
+      analyzeReviewData(false);
+    });
+    document.getElementById('backToMenuBtn').addEventListener('click', () => {
+      reviewScreenEl.classList.remove('show');
+      document.querySelector('.app').style.display = '';
+      difficultyModal.classList.add('show');
+    });
+    document.getElementById('startReviewBtn').addEventListener('click', () => startReview(0));
+    document.getElementById('skipBlundersBtn').addEventListener('click', () => analyzeReviewData(true));
+    document.getElementById('firstMoveBtn').addEventListener('click', () => setReviewIndex(0));
+    document.getElementById('prevMoveBtn').addEventListener('click', () => setReviewIndex((reviewState?.index||0)-1));
+    document.getElementById('nextMoveBtn').addEventListener('click', () => setReviewIndex((reviewState?.index||0)+1));
+    document.getElementById('lastMoveBtn').addEventListener('click', () => setReviewIndex(gameReviewData?.plies?.length||0));
+    document.addEventListener('keydown', (e) => {
+      if (!reviewState || reviewState.phase !== 'main') return;
+      if (e.key === 'ArrowLeft') setReviewIndex((reviewState.index||0)-1);
+      if (e.key === 'ArrowRight') setReviewIndex((reviewState.index||0)+1);
+    });
     buildLabels();
     setupDifficultyModal();
   </script>

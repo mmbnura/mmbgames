@@ -1,4 +1,4 @@
-    const APP_VERSION = '0.6';
+    const APP_VERSION = '0.8';
     const PIECE_UNICODE = {
       wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
       bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
@@ -61,7 +61,7 @@
     let game = null;
     let gameReviewData = null;
     let reviewState = null;
-    let reviewMeta = { whiteName: 'White', blackName: 'Black' };
+    let reviewMeta = { whiteName: 'White', blackName: 'Black', userColor: 'w', aiColor: 'b' };
     let selected = null;
     let validMoves = [];
     let pendingPromotion = null;
@@ -72,6 +72,30 @@
     function byId(id){ return document.getElementById(id); }
     function on(id, event, handler){ const el = byId(id); if (el) el.addEventListener(event, handler); }
     function appContainer(){ return document.querySelector('.app'); }
+    function inferReviewSides(whiteName, blackName) {
+      const userRe = /(user|you|player|human)/i;
+      const aiRe = /(computer|ai|bot|engine)/i;
+      const whiteLooksUser = userRe.test(whiteName || '');
+      const blackLooksUser = userRe.test(blackName || '');
+      const whiteLooksAi = aiRe.test(whiteName || '');
+      const blackLooksAi = aiRe.test(blackName || '');
+
+      if (whiteLooksUser && blackLooksAi) return { userColor: 'w', aiColor: 'b' };
+      if (blackLooksUser && whiteLooksAi) return { userColor: 'b', aiColor: 'w' };
+      if (whiteLooksUser && !blackLooksUser) return { userColor: 'w', aiColor: 'b' };
+      if (blackLooksUser && !whiteLooksUser) return { userColor: 'b', aiColor: 'w' };
+      if (whiteLooksAi && !blackLooksAi) return { userColor: 'b', aiColor: 'w' };
+      if (blackLooksAi && !whiteLooksAi) return { userColor: 'w', aiColor: 'b' };
+      if (game?.playerColor && game?.aiColor) return { userColor: game.playerColor, aiColor: game.aiColor };
+      return { userColor: 'w', aiColor: 'b' };
+    }
+    function renderSideAssignment() {
+      const sideTextEl = byId('sideAssignmentText');
+      if (!sideTextEl) return;
+      const userSide = reviewMeta.userColor === 'b' ? 'Black' : 'White';
+      const aiSide = reviewMeta.aiColor === 'w' ? 'White' : 'Black';
+      sideTextEl.textContent = `User: ${userSide} • Computer: ${aiSide}`;
+    }
     function buildLabels() {
       if (!topFilesEl || !bottomFilesEl || !leftRanksEl || !rightRanksEl) return;
       topFilesEl.innerHTML = ''; bottomFilesEl.innerHTML = '';
@@ -302,14 +326,18 @@
       if (!pgnText || !pgnText.trim()) return;
       const normalizedPgn = pgnText.replace(/\\n/g, '\n');
       const headers = parsePgnHeaders(normalizedPgn);
+      const whiteName = headers.White || 'White';
+      const blackName = headers.Black || 'Black';
       reviewMeta = {
-        whiteName: headers.White || 'White',
-        blackName: headers.Black || 'Black'
+        whiteName,
+        blackName,
+        ...inferReviewSides(whiteName, blackName)
       };
       const wNameEl = document.getElementById('whitePlayerName');
       const bNameEl = document.getElementById('blackPlayerName');
       if (wNameEl) wNameEl.textContent = reviewMeta.whiteName;
       if (bNameEl) bNameEl.textContent = reviewMeta.blackName;
+      renderSideAssignment();
       const body = normalizedPgn.replace(/\[[^\]]*\]/g, ' ').replace(/\{[^}]*\}/g, ' ').replace(/\([^)]*\)/g, ' ');
       const rawTokens = body.split(/\s+/).map(t => t.trim()).filter(Boolean);
       const tokens = rawTokens.filter(t => !/^\d+\.(\.\.)?$/.test(t) && !/^1-0$|^0-1$|^1\/2-1\/2$|^\*$/.test(t));
@@ -374,6 +402,7 @@
       const app = appContainer();
       if (app) app.style.display = 'none';
       reviewScreenEl.classList.add('show');
+      renderSideAssignment();
       document.getElementById('reviewLoading').style.display = 'block';
       document.getElementById('reviewSummary').style.display = 'none';
       document.getElementById('reviewMain').style.display = 'none';
@@ -1004,7 +1033,9 @@ function newGame(difficultyKey) {
       gameOverBodyEl.textContent = `${msg}. Final move count: ${game.moveHistory.length}.`;
       reviewMeta = {
         whiteName: game.playerName || 'User',
-        blackName: game.aiName || 'Computer'
+        blackName: game.aiName || 'Computer',
+        userColor: game.playerColor || 'w',
+        aiColor: game.aiColor || 'b'
       };
       gameReviewData = {
         initialState: {
@@ -1177,8 +1208,9 @@ function newGame(difficultyKey) {
       const blackNameEl = document.getElementById('blackPlayerName');
       if (whiteNameEl) whiteNameEl.textContent = reviewMeta.whiteName || 'White';
       if (blackNameEl) blackNameEl.textContent = reviewMeta.blackName || 'Black';
-      const playerColor = game?.playerColor || 'w';
-      const aiColor = game?.aiColor || 'b';
+      renderSideAssignment();
+      const playerColor = reviewMeta.userColor || game?.playerColor || 'w';
+      const aiColor = reviewMeta.aiColor || game?.aiColor || enemy(playerColor);
       const sideAcc = { w: [], b: [] };
 
       for (let i=0;i<gameReviewData.plies.length;i++) {
@@ -1310,9 +1342,10 @@ function renderReviewBoard(index) {
       if (played && cls) {
         const bestEval = gameReviewData.bestEvals[i-1]/100;
         const actualEval = gameReviewData.evals[i-1]/100;
+        const moverName = played.movedPiece?.[0] === 'b' ? 'Black' : 'White';
         const msg = (cls.label==='Best'||cls.label==='Excellent'||cls.label==='Brilliant')
           ? `✅ ${cls.label} move! (${actualEval.toFixed(1)})`
-          : `❌ You played ${played.notation} ${cls.icon}. Best was ${moveToString(best)} (${bestEval.toFixed(1)})`;
+          : `❌ ${moverName} played ${played.notation} ${cls.icon}. Best was ${moveToString(best)} (${bestEval.toFixed(1)})`;
         document.getElementById('bestMoveText').textContent = `Best move was: ${moveToString(best)} | ${msg}`;
         document.getElementById('engineLineText').textContent = `Engine line: ${moveToString(best)} ...`;
       }
@@ -1397,6 +1430,7 @@ function renderReviewBoard(index) {
 
     const v = byId('versionFooter');
     if (v) v.textContent = `MMB Chess v${APP_VERSION}`;
+    renderSideAssignment();
     buildLabels();
     if (difficultyListEl) setupDifficultyModal();
     renderSavedGamesList();

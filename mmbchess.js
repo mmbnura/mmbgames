@@ -1356,9 +1356,31 @@ function renderReviewBoard(index) {
       reviewState = { phase: 'main', index: startIndex };
       buildLabelsForReview();
       setReviewIndex(startIndex);
-      const counts = {};
-      gameReviewData.classifications.forEach(c=>counts[c.label]=(counts[c.label]||0)+1);
-      document.getElementById('classSummary').innerHTML = Object.entries(counts).map(([k,v])=>`${k}: ${v}`).join('<br>');
+
+      const whiteRole = reviewMeta.userColor === 'w' ? 'User' : 'Computer AI';
+      const blackRole = reviewMeta.userColor === 'b' ? 'User' : 'Computer AI';
+      const classOrder = ['Brilliant', 'Excellent', 'Best', 'Good', 'Inaccuracy', 'Mistake', 'Blunder', 'Miss'];
+      const byColor = { w: {}, b: {} };
+      gameReviewData.classifications.forEach((c, idx) => {
+        const mover = idx % 2 === 0 ? 'w' : 'b';
+        byColor[mover][c.label] = (byColor[mover][c.label] || 0) + 1;
+      });
+      const formatCounts = (counts) => {
+        const rows = classOrder
+          .filter(label => (counts[label] || 0) > 0)
+          .map(label => `${label}: ${counts[label]}`);
+        return rows.length ? rows.join('<br>') : 'No classified moves yet.';
+      };
+      document.getElementById('classSummary').innerHTML = `
+        <div style="margin-bottom:10px;">
+          <strong>Classification summary for Black (${blackRole})</strong><br>
+          ${formatCounts(byColor.b)}
+        </div>
+        <div>
+          <strong>Classification summary for White (${whiteRole})</strong><br>
+          ${formatCounts(byColor.w)}
+        </div>
+      `;
     }
     function buildLabelsForReview() {
       const tf = document.getElementById('reviewTopFiles');

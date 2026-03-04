@@ -248,6 +248,11 @@
         <div id="difficultyText" class="difficulty"></div>
       </div>
       <div class="card">
+        <h4>Timers</h4>
+        <div class="status-text">White: <span id="whiteTimer">00:00</span></div>
+        <div class="status-text">Black: <span id="blackTimer">00:00</span></div>
+      </div>
+      <div class="card">
         <h4>White Captured</h4>
         <div id="whiteCaptured" class="captured"></div>
       </div>
@@ -385,6 +390,8 @@
     const gameOverModal = document.getElementById('gameOverModal');
     const gameOverTitleEl = document.getElementById('gameOverTitle');
     const gameOverBodyEl = document.getElementById('gameOverBody');
+    const whiteTimerEl = document.getElementById('whiteTimer');
+    const blackTimerEl = document.getElementById('blackTimer');
     const reviewScreenEl = document.getElementById('reviewScreen');
     const reviewBoardEl = document.getElementById('reviewBoard');
     let game = null;
@@ -394,6 +401,8 @@
     let validMoves = [];
     let pendingPromotion = null;
     let aiThinking = false;
+    let gameClockInterval = null;
+    let lastClockTick = 0;
     function buildLabels() {
       topFilesEl.innerHTML = ''; bottomFilesEl.innerHTML = '';
       FILES.forEach(f => {
@@ -414,7 +423,31 @@
       b[7] = ['wR','wN','wB','wQ','wK','wB','wN','wR'];
       return b;
     }
-    function newGame(difficultyKey) {
+    
+    function formatClock(ms) {
+      const totalSec = Math.floor(Math.max(0, ms) / 1000);
+      const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+      const s = String(totalSec % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+    function stopGameClock() {
+      if (gameClockInterval) clearInterval(gameClockInterval);
+      gameClockInterval = null;
+    }
+    function startGameClock() {
+      stopGameClock();
+      lastClockTick = performance.now();
+      gameClockInterval = setInterval(() => {
+        if (!game || game.gameOver) return;
+        const now = performance.now();
+        const dt = now - lastClockTick;
+        lastClockTick = now;
+        if (game.turn === 'w') game.whiteTimeMs += dt; else game.blackTimeMs += dt;
+        whiteTimerEl.textContent = formatClock(game.whiteTimeMs);
+        blackTimerEl.textContent = formatClock(game.blackTimeMs);
+      }, 200);
+    }
+function newGame(difficultyKey) {
       const diff = DIFFICULTIES.find(d => d.key === difficultyKey) || DIFFICULTIES[1];
       game = {
         board: createInitialBoard(),
@@ -430,6 +463,8 @@
         lastMove: null,
         gameOver: null,
         pendingCheckFlash: null,
+        whiteTimeMs: 0,
+        blackTimeMs: 0,
         reviewPositions: [],
         reviewPlies: []
       };
@@ -438,6 +473,7 @@
       pendingPromotion = null;
       aiThinking = false;
       gameOverModal.classList.remove('show');
+      startGameClock();
       render();
       maybeAIMove();
     }
@@ -764,7 +800,13 @@
       if (levelKey === 'easy') score += (blackMob - whiteMob) * 2;
       return score;
     }
-    function minimax(state, depth, alpha, beta, maximizing, levelKey) {
+    function minimax(state, depth, alpha, beta, maximizing, levelKey, searchCtx = null) {
+      if (searchCtx) {
+        searchCtx.nodes += 1;
+        if (searchCtx.nodes >= searchCtx.maxNodes) searchCtx.aborted = true;
+        if ((searchCtx.nodes & 1023) === 0 && (performance.now() - searchCtx.startMs) > searchCtx.maxTimeMs) searchCtx.aborted = true;
+        if (searchCtx.aborted) return evaluateBoard(state, levelKey);
+      }
       const result = gameResult(state);
       if (result) {
         if (result.type === 'checkmate') return maximizing ? -999999 : 999999;
@@ -777,7 +819,7 @@
         for (const m of moves) {
           const promoted = m.promotion ? 'Q' : null;
           const next = applyMove(state, m, promoted).state;
-          const val = minimax(next, depth-1, alpha, beta, false, levelKey);
+          const val = minimax(next, depth-1, alpha, beta, false, levelKey, searchCtx);
           maxEval = Math.max(maxEval, val);
           alpha = Math.max(alpha, val);
           if (beta <= alpha) break;
@@ -788,7 +830,7 @@
         for (const m of moves) {
           const promoted = m.promotion ? 'Q' : null;
           const next = applyMove(state, m, promoted).state;
-          const val = minimax(next, depth-1, alpha, beta, true, levelKey);
+          const val = minimax(next, depth-1, alpha, beta, true, levelKey, searchCtx);
           minEval = Math.min(minEval, val);
           beta = Math.min(beta, val);
           if (beta <= alpha) break;
@@ -806,33 +848,42 @@
         return pool[Math.floor(Math.random() * pool.length)];
       }
       if (diff.key === 'easy') {
-        // Depth-1 minimax with lightweight priorities.
         let best = -Infinity, chosen = moves[0];
         for (const m of moves) {
           const next = applyMove(state, m, m.promotion ? 'Q' : null).state;
           let score = evaluateBoard(next, 'easy');
-          // Prefer captures and center control explicitly.
           if (state.board[m.toR][m.toC] || m.enPassant) score += 70;
           if ([3,4].includes(m.toR) && [3,4].includes(m.toC)) score += 20;
-          // Avoid obvious blunders: discourage moves that leave captured piece hanging.
-          const movedColor = 'b';
-          if (isSquareAttacked(next, m.toR, m.toC, enemy(movedColor))) score -= 35;
+          if (isSquareAttacked(next, m.toR, m.toC, 'w')) score -= 35;
           score += Math.random() * 12;
           if (score > best) { best = score; chosen = m; }
         }
         return chosen;
       }
+      const searchLimits = {
+        medium: { maxNodes: 30000, maxTimeMs: 350 },
+        hard: { maxNodes: 50000, maxTimeMs: 650 },
+        expert: { maxNodes: 70000, maxTimeMs: 950 }
+      }[diff.key] || { maxNodes: 25000, maxTimeMs: 300 };
       const depth = diff.depth;
       let bestVal = -Infinity;
       let bestMoves = [];
+      const searchCtx = { nodes: 0, maxNodes: searchLimits.maxNodes, maxTimeMs: searchLimits.maxTimeMs, startMs: performance.now(), aborted: false };
       for (const m of moves) {
         const next = applyMove(state, m, m.promotion ? 'Q' : null).state;
-        const val = minimax(next, depth-1, -Infinity, Infinity, false, diff.key);
+        const val = minimax(next, depth-1, -Infinity, Infinity, false, diff.key, searchCtx);
         if (val > bestVal) { bestVal = val; bestMoves = [m]; }
         else if (val === bestVal) bestMoves.push(m);
+        if (searchCtx.aborted) break;
       }
+      if (!bestMoves.length) return moves[Math.floor(Math.random() * moves.length)];
       return bestMoves[Math.floor(Math.random() * bestMoves.length)];
     }
+
+    async function chooseAIMoveAsync(state) {
+      return new Promise(resolve => setTimeout(() => resolve(chooseAIMove(state)), 0));
+    }
+
     async function animateMove(fromR, fromC, toR, toC, movedPiece, capturedPiece) {
       const fromSq = document.querySelector(`.square[data-r='${fromR}'][data-c='${fromC}']`);
       const toSq = document.querySelector(`.square[data-r='${toR}'][data-c='${toC}']`);
@@ -927,6 +978,8 @@
       difficultyTextEl.textContent = `${game.selectedDifficulty.name} (ELO ~${game.selectedDifficulty.elo})`;
       whiteCapturedEl.textContent = game.capturedWhite.map(p => PIECE_UNICODE[p]).join(' ');
       blackCapturedEl.textContent = game.capturedBlack.map(p => PIECE_UNICODE[p]).join(' ');
+      whiteTimerEl.textContent = formatClock(game.whiteTimeMs || 0);
+      blackTimerEl.textContent = formatClock(game.blackTimeMs || 0);
       renderHistory();
     }
     function renderHistory() {
@@ -1004,6 +1057,7 @@
         bestEvals: [],
         classifications: []
       };
+      stopGameClock();
       gameOverModal.classList.add('show');
     }
     function handleSquareClick(r,c) {
@@ -1051,7 +1105,7 @@
       if (!game || game.gameOver || game.turn !== 'b') return;
       aiThinking = true;
       setTimeout(async () => {
-        const move = chooseAIMove(game);
+        const move = await chooseAIMoveAsync(game);
         aiThinking = false;
         if (!move) {
           const result = gameResult(game);

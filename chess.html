@@ -540,6 +540,8 @@ function newGame(difficultyKey) {
         halfmoveClock: 0,
         fullmoveNumber: 1,
         selectedDifficulty: diff,
+        playerColor: 'w',
+        aiColor: 'b',
         moveHistory: [],
         capturedWhite: [],
         capturedBlack: [],
@@ -1287,7 +1289,10 @@ function newGame(difficultyKey) {
     }
     function buildReviewSummary(startAtBlunder = false) {
       const classifs = [];
-      let wAcc = [], bAcc = [];
+      const playerColor = game?.playerColor || 'w';
+      const aiColor = game?.aiColor || 'b';
+      const sideAcc = { w: [], b: [] };
+
       for (let i=0;i<gameReviewData.plies.length;i++) {
         const mover = i % 2 === 0 ? 'w' : 'b';
         const actual = gameReviewData.evals[i];
@@ -1295,18 +1300,22 @@ function newGame(difficultyKey) {
         const cpLoss = mover === 'w' ? Math.max(0, best - actual) : Math.max(0, actual - best);
         let cls = classifyMove(cpLoss);
         if (cls.label === 'Best' && gameReviewData.plies[i].captured && !gameReviewData.bestMoves[i]?.capture) cls = { label:'Brilliant', icon:'★★', color:'#1baca6' };
-        classifs.push({ ...cls, cpLoss, moveIndex: i });
-        const acc = accuracyFromLoss(cpLoss);
-        if (mover === 'w') wAcc.push(acc); else bAcc.push(acc);
+        classifs.push({ ...cls, cpLoss, moveIndex: i, mover });
+        sideAcc[mover].push(accuracyFromLoss(cpLoss));
       }
-      gameReviewData.classifications = classifs;
-      const wa = wAcc.length ? (wAcc.reduce((a,b)=>a+b,0)/wAcc.length) : 100;
-      const ba = bAcc.length ? (bAcc.reduce((a,b)=>a+b,0)/bAcc.length) : 100;
-      const accColor = (v) => v>=90?'#5c8a3c':v>=70?'#f0c15b':v>=50?'#e07b37':'#ca3431';
-      document.getElementById('whiteAccuracy').innerHTML = `<span style="display:inline-block;background:#fff;color:#111;padding:2px 10px;border-radius:6px;min-width:84px;">${wa.toFixed(1)}</span>`;
-      document.getElementById('blackAccuracy').innerHTML = `<span style="display:inline-block;background:#2b2f39;color:#fff;padding:2px 10px;border-radius:6px;min-width:84px;">${ba.toFixed(1)}</span>`;
 
-      const bySide = { w: classifs.filter((_,i)=>i%2===0), b: classifs.filter((_,i)=>i%2===1) };
+      gameReviewData.classifications = classifs;
+      const avg = (arr) => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : 100;
+      const playerAcc = avg(sideAcc[playerColor]);
+      const aiAcc = avg(sideAcc[aiColor]);
+
+      document.getElementById('whiteAccuracy').innerHTML = `<span style="display:inline-block;background:#fff;color:#111;padding:2px 10px;border-radius:6px;min-width:84px;">${playerAcc.toFixed(1)}</span>`;
+      document.getElementById('blackAccuracy').innerHTML = `<span style="display:inline-block;background:#2b2f39;color:#fff;padding:2px 10px;border-radius:6px;min-width:84px;">${aiAcc.toFixed(1)}</span>`;
+
+      const bySide = {
+        player: classifs.filter(c => c.mover === playerColor),
+        ai: classifs.filter(c => c.mover === aiColor)
+      };
       const countBy = (arr, labels) => arr.filter(c => labels.includes(c.label)).length;
       const rows = [
         { name:'Brilliant', icon:'‼', iconBg:'#1baca6', labels:['Brilliant'], color:'#21e6d8' },
@@ -1316,32 +1325,32 @@ function newGame(difficultyKey) {
         { name:'Miss', icon:'✖', iconBg:'#9b59b6', labels:['Miss'], color:'#d7a4ff' },
         { name:'Blunder', icon:'??', iconBg:'#ca3431', labels:['Blunder'], color:'#ff615b' }
       ];
-      document.getElementById('leftClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span>${r.name}</span><span style="font-weight:700;color:${r.color};">${countBy(bySide.w,r.labels)}</span></div>`).join('');
+      document.getElementById('leftClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span>${r.name}</span><span style="font-weight:700;color:${r.color};">${countBy(bySide.player,r.labels)}</span></div>`).join('');
       document.getElementById('classLegendCol').innerHTML = rows.map(r => `<div style="margin:7px 0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${r.iconBg};font-weight:800;">${r.icon}</span></div>`).join('');
-      document.getElementById('rightClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span style="font-weight:700;color:${r.color};">${countBy(bySide.b,r.labels)}</span><span style="opacity:.9">${r.name}</span></div>`).join('');
+      document.getElementById('rightClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span style="font-weight:700;color:${r.color};">${countBy(bySide.ai,r.labels)}</span><span style="opacity:.9">${r.name}</span></div>`).join('');
 
-      const rating = (acc, side) => Math.max(400, Math.min(2800, Math.round(500 + acc*18 - countBy(bySide[side],['Blunder'])*70 - countBy(bySide[side],['Mistake'])*25)));
-      document.getElementById('whiteGameRating').textContent = rating(wa, 'w');
-      document.getElementById('blackGameRating').textContent = rating(ba, 'b');
+      const rating = (acc, who) => Math.max(400, Math.min(2800, Math.round(500 + acc*18 - countBy(bySide[who],['Blunder'])*70 - countBy(bySide[who],['Mistake'])*25)));
+      document.getElementById('whiteGameRating').textContent = rating(playerAcc, 'player');
+      document.getElementById('blackGameRating').textContent = rating(aiAcc, 'ai');
 
       const phaseIcon = (arr) => {
         if (!arr.length) return '-';
-        const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
-        return avg >= 80 ? '👍' : avg >= 60 ? '⚠️' : '👎';
+        const avgP = arr.reduce((a,b)=>a+b,0)/arr.length;
+        return avgP >= 80 ? '👍' : avgP >= 60 ? '⚠️' : '👎';
       };
-      const wMoves = wAcc, bMoves = bAcc;
       const split = (arr, part) => {
         if (!arr.length) return [];
         const n = arr.length;
         const a = Math.floor(n/3), b = Math.floor(2*n/3);
         return part===0 ? arr.slice(0,a||1) : part===1 ? arr.slice(a||1,b||Math.max(2,n-1)) : arr.slice(b||Math.max(2,n-1));
       };
-      document.getElementById('whiteOpening').textContent = phaseIcon(split(wMoves,0));
-      document.getElementById('whiteMiddle').textContent = phaseIcon(split(wMoves,1));
-      document.getElementById('whiteEnd').textContent = phaseIcon(split(wMoves,2));
-      document.getElementById('blackOpening').textContent = phaseIcon(split(bMoves,0));
-      document.getElementById('blackMiddle').textContent = phaseIcon(split(bMoves,1));
-      document.getElementById('blackEnd').textContent = phaseIcon(split(bMoves,2));
+      const playerMoves = sideAcc[playerColor], aiMoves = sideAcc[aiColor];
+      document.getElementById('whiteOpening').textContent = phaseIcon(split(playerMoves,0));
+      document.getElementById('whiteMiddle').textContent = phaseIcon(split(playerMoves,1));
+      document.getElementById('whiteEnd').textContent = phaseIcon(split(playerMoves,2));
+      document.getElementById('blackOpening').textContent = phaseIcon(split(aiMoves,0));
+      document.getElementById('blackMiddle').textContent = phaseIcon(split(aiMoves,1));
+      document.getElementById('blackEnd').textContent = phaseIcon(split(aiMoves,2));
 
       const swings = classifs.map((c,i)=>({i,s:Math.abs((gameReviewData.evals[i]||0)-(gameReviewData.evals[i-1]||0))})).sort((a,b)=>b.s-a.s).slice(0,3);
       document.getElementById('keyMoments').innerHTML = swings.map(k=>{
@@ -1357,7 +1366,7 @@ function newGame(difficultyKey) {
         startReview(Math.max(1, idx+1));
       }
     }
-    function renderReviewBoard(index) {
+function renderReviewBoard(index) {
       const board = index === 0 ? createInitialBoard() : gameReviewData.plies[index-1].boardAfter;
       reviewBoardEl.innerHTML = '';
       for (let r=0;r<8;r++) for (let c=0;c<8;c++) {

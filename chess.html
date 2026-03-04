@@ -219,6 +219,53 @@
       pointer-events: none;
       transition: transform 200ms ease, opacity 200ms ease;
     }
+
+    .brand-logo {
+      position: fixed;
+      top: 14px;
+      left: 16px;
+      z-index: 70;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #2b2f52, #1b1f3a);
+      border: 1px solid #4f578f;
+      box-shadow: 0 10px 24px rgba(0,0,0,.35);
+      font-weight: 800;
+      letter-spacing: .3px;
+    }
+    .brand-logo .icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: linear-gradient(180deg, #f0d9b5, #b58863);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #111;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .brand-logo .text { color: #f5f7ff; }
+    .brand-logo .sub { color: #8fd7ff; font-size: 12px; margin-left: 6px; }
+
+    .version-footer {
+      position: fixed;
+      left: 50%;
+      bottom: 10px;
+      transform: translateX(-50%);
+      z-index: 60;
+      color: #b8bfe8;
+      background: rgba(14, 17, 31, .65);
+      border: 1px solid #343a63;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 12px;
+      letter-spacing: .3px;
+    }
+
     @media (max-width: 980px) {
       .app { flex-direction: column; align-items: center; }
       .side { width: min(94vw, 700px); max-height: unset; }
@@ -227,6 +274,8 @@
   </style>
 </head>
 <body>
+  <div class="brand-logo"><span class="icon">♞</span><span class="text">MMB Chess <span class="sub">Studio</span></span></div>
+  <div class="version-footer" id="versionFooter">MMB Chess v0.1</div>
   <div class="app">
     <div class="board-area">
       <div class="board-frame">
@@ -304,9 +353,42 @@
       </div>
       <div id="reviewSummary" style="display:none;flex:1;overflow:auto;padding-top:10px;">
         <h2>Game Review Complete</h2>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-          <div class="card" style="flex:1;min-width:220px;"><h4>Player (White)</h4><div id="whiteAccuracy"></div><div id="whiteClassSummary"></div></div>
-          <div class="card" style="flex:1;min-width:220px;"><h4>Computer (Black)</h4><div id="blackAccuracy"></div><div id="blackClassSummary"></div></div>
+        <div class="card" style="margin-top:8px;background:#1d1d1d;border-color:#343434;">
+          <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:10px;align-items:center;text-align:center;">
+            <div>
+              <div style="font-weight:700">You</div>
+              <div style="width:64px;height:64px;border-radius:8px;background:#333;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:34px;border:3px solid #8bc34a;">♙</div>
+              <div id="whiteAccuracy" style="font-size:30px;font-weight:800;"></div>
+            </div>
+            <div style="font-size:26px;opacity:.8;">vs</div>
+            <div>
+              <div style="font-weight:700">Computer</div>
+              <div style="width:64px;height:64px;border-radius:8px;background:#333;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:34px;border:3px solid #607d8b;">♟</div>
+              <div id="blackAccuracy" style="font-size:30px;font-weight:800;"></div>
+            </div>
+          </div>
+          <div style="height:1px;background:#343434;margin:12px 0;"></div>
+          <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:8px;align-items:center;">
+            <div id="leftClassCol"></div>
+            <div id="classLegendCol" style="text-align:center;"></div>
+            <div id="rightClassCol" style="text-align:right;"></div>
+          </div>
+          <div style="text-align:center;opacity:.8;font-size:24px;line-height:1;margin:8px 0;">⌄</div>
+          <div style="height:1px;background:#343434;margin:8px 0 12px;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <div style="margin-bottom:8px;">Game Rating: <span id="whiteGameRating" style="display:inline-block;background:#efefef;color:#111;padding:2px 8px;border-radius:6px;font-weight:800;">1500</span></div>
+              <div>Opening: <span id="whiteOpening"></span></div>
+              <div>Middlegame: <span id="whiteMiddle"></span></div>
+              <div>Endgame: <span id="whiteEnd"></span></div>
+            </div>
+            <div style="text-align:right;">
+              <div style="margin-bottom:8px;">Game Rating: <span id="blackGameRating" style="display:inline-block;background:#2b2f39;padding:2px 8px;border-radius:6px;font-weight:800;">1450</span></div>
+              <div>Opening: <span id="blackOpening"></span></div>
+              <div>Middlegame: <span id="blackMiddle"></span></div>
+              <div>Endgame: <span id="blackEnd"></span></div>
+            </div>
+          </div>
         </div>
         <canvas id="evalGraphSummary" width="900" height="120" style="width:100%;height:120px;background:#171a31;border-radius:8px;margin-top:10px;"></canvas>
         <div class="card" style="margin-top:10px;"><h4>Key Moments</h4><div id="keyMoments"></div></div>
@@ -338,6 +420,7 @@
     </div>
   </div>
   <script>
+    const APP_VERSION = '0.1';
     const PIECE_UNICODE = {
       wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
       bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟'
@@ -1219,13 +1302,47 @@ function newGame(difficultyKey) {
       gameReviewData.classifications = classifs;
       const wa = wAcc.length ? (wAcc.reduce((a,b)=>a+b,0)/wAcc.length) : 100;
       const ba = bAcc.length ? (bAcc.reduce((a,b)=>a+b,0)/bAcc.length) : 100;
-      document.getElementById('whiteAccuracy').innerHTML = `<strong style="color:${wa>=90?'#5c8a3c':wa>=70?'#f0c15b':wa>=50?'#e07b37':'#ca3431'}">${wa.toFixed(1)}%</strong>`;
-      document.getElementById('blackAccuracy').innerHTML = `<strong style="color:${ba>=90?'#5c8a3c':ba>=70?'#f0c15b':ba>=50?'#e07b37':'#ca3431'}">${ba.toFixed(1)}%</strong>`;
-      const counts = {};
-      classifs.forEach(c=>counts[c.label]=(counts[c.label]||0)+1);
-      const sumHtml = Object.entries(counts).map(([k,v])=>`${k}: ${v}`).join('<br>');
-      document.getElementById('whiteClassSummary').innerHTML = sumHtml;
-      document.getElementById('blackClassSummary').innerHTML = sumHtml;
+      const accColor = (v) => v>=90?'#5c8a3c':v>=70?'#f0c15b':v>=50?'#e07b37':'#ca3431';
+      document.getElementById('whiteAccuracy').innerHTML = `<span style="display:inline-block;background:#fff;color:#111;padding:2px 10px;border-radius:6px;min-width:84px;">${wa.toFixed(1)}</span>`;
+      document.getElementById('blackAccuracy').innerHTML = `<span style="display:inline-block;background:#2b2f39;color:#fff;padding:2px 10px;border-radius:6px;min-width:84px;">${ba.toFixed(1)}</span>`;
+
+      const bySide = { w: classifs.filter((_,i)=>i%2===0), b: classifs.filter((_,i)=>i%2===1) };
+      const countBy = (arr, labels) => arr.filter(c => labels.includes(c.label)).length;
+      const rows = [
+        { name:'Brilliant', icon:'‼', iconBg:'#1baca6', labels:['Brilliant'], color:'#21e6d8' },
+        { name:'Great', icon:'!', iconBg:'#4f7fb6', labels:['Excellent'], color:'#9cc7ff' },
+        { name:'Best', icon:'★', iconBg:'#7bb342', labels:['Best'], color:'#7dff84' },
+        { name:'Mistake', icon:'?', iconBg:'#e07b37', labels:['Mistake','Inaccuracy'], color:'#ff9f6a' },
+        { name:'Miss', icon:'✖', iconBg:'#9b59b6', labels:['Miss'], color:'#d7a4ff' },
+        { name:'Blunder', icon:'??', iconBg:'#ca3431', labels:['Blunder'], color:'#ff615b' }
+      ];
+      document.getElementById('leftClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span>${r.name}</span><span style="font-weight:700;color:${r.color};">${countBy(bySide.w,r.labels)}</span></div>`).join('');
+      document.getElementById('classLegendCol').innerHTML = rows.map(r => `<div style="margin:7px 0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${r.iconBg};font-weight:800;">${r.icon}</span></div>`).join('');
+      document.getElementById('rightClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span style="font-weight:700;color:${r.color};">${countBy(bySide.b,r.labels)}</span><span style="opacity:.9">${r.name}</span></div>`).join('');
+
+      const rating = (acc, side) => Math.max(400, Math.min(2800, Math.round(500 + acc*18 - countBy(bySide[side],['Blunder'])*70 - countBy(bySide[side],['Mistake'])*25)));
+      document.getElementById('whiteGameRating').textContent = rating(wa, 'w');
+      document.getElementById('blackGameRating').textContent = rating(ba, 'b');
+
+      const phaseIcon = (arr) => {
+        if (!arr.length) return '-';
+        const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
+        return avg >= 80 ? '👍' : avg >= 60 ? '⚠️' : '👎';
+      };
+      const wMoves = wAcc, bMoves = bAcc;
+      const split = (arr, part) => {
+        if (!arr.length) return [];
+        const n = arr.length;
+        const a = Math.floor(n/3), b = Math.floor(2*n/3);
+        return part===0 ? arr.slice(0,a||1) : part===1 ? arr.slice(a||1,b||Math.max(2,n-1)) : arr.slice(b||Math.max(2,n-1));
+      };
+      document.getElementById('whiteOpening').textContent = phaseIcon(split(wMoves,0));
+      document.getElementById('whiteMiddle').textContent = phaseIcon(split(wMoves,1));
+      document.getElementById('whiteEnd').textContent = phaseIcon(split(wMoves,2));
+      document.getElementById('blackOpening').textContent = phaseIcon(split(bMoves,0));
+      document.getElementById('blackMiddle').textContent = phaseIcon(split(bMoves,1));
+      document.getElementById('blackEnd').textContent = phaseIcon(split(bMoves,2));
+
       const swings = classifs.map((c,i)=>({i,s:Math.abs((gameReviewData.evals[i]||0)-(gameReviewData.evals[i-1]||0))})).sort((a,b)=>b.s-a.s).slice(0,3);
       document.getElementById('keyMoments').innerHTML = swings.map(k=>{
         const p = gameReviewData.plies[k.i];
@@ -1372,6 +1489,7 @@ function newGame(difficultyKey) {
       if (e.key === 'ArrowLeft') setReviewIndex((reviewState.index||0)-1);
       if (e.key === 'ArrowRight') setReviewIndex((reviewState.index||0)+1);
     });
+    document.getElementById('versionFooter').textContent = `MMB Chess v${APP_VERSION}`;
     buildLabels();
     setupDifficultyModal();
   </script>

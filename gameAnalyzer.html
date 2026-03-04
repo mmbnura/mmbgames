@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MMB Chess</title>
+  <link rel="stylesheet" href="mmbchess.css" />
+</head>
+<body>
+  <div class="brand-logo"><span class="icon">♞</span><span class="text">MMB Chess <span class="sub">Studio</span></span></div>
+  <div class="brand-menu">
+    <button id="openAnalyzerFromMenuBtn" class="secondary">Game Analyzer</button>
+  </div>
+  <div class="version-footer" id="versionFooter">MMB Chess v0.8</div>
+  <div id="reviewScreen" class="overlay show">
+    <div class="modal" style="width:min(99vw,1380px);height:min(97vh,940px);display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <h2 style="margin:0;">Game Analyzer</h2>
+        <button id="backToMenuBtn" class="secondary">← Back to Menu</button>
+      </div>
+      <div class="analyzer-layout" style="margin-top:10px;">
+        <aside class="analyzer-side card" style="min-height:0;">
+          <h4>Past Games</h4>
+          <div id="analyzerGameList" class="game-list"></div>
+          <button id="refreshGamesBtn" class="secondary">Refresh List</button>
+          <h4 style="margin-top:6px;">Analyze PGN</h4>
+          <textarea id="pgnInput" placeholder="Paste PGN here..." style="width:100%;min-height:130px;background:#111630;color:#dce3ff;border:1px solid #38406f;border-radius:8px;padding:8px;"></textarea>
+          <button id="analyzePgnBtn">Analyze PGN</button>
+        </aside>
+
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+          <div id="reviewLoading" class="card" style="margin-top:0;">
+            <div id="reviewLoadingText">Choose a game from the left or paste PGN to analyze.</div>
+            <div style="height:10px;background:#11152b;border-radius:999px;overflow:hidden;margin-top:8px;"><div id="reviewProgressBar" style="height:100%;width:0;background:#5ad1ff"></div></div>
+          </div>
+          <div id="reviewSummary" style="display:none;flex:1;overflow:auto;padding-top:10px;">
+            <h2>Game Review Complete</h2>
+            <div id="sideAssignmentText" class="card" style="margin-top:8px;padding:10px 12px;font-size:14px;">User: White • Computer: Black</div>
+            <div class="card" style="margin-top:8px;background:#f4f6fb;color:#111;border-color:#c8d0ec;">
+              <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:10px;align-items:center;text-align:center;">
+                <div><div id="whitePlayerName" style="font-weight:700;color:#111;">White</div><div style="width:64px;height:64px;border-radius:8px;background:#ececec;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:34px;border:3px solid #8bc34a;">♙</div><div id="whiteAccuracy" style="font-size:30px;font-weight:800;"></div></div>
+                <div style="font-size:26px;opacity:.8;">vs</div>
+                <div><div id="blackPlayerName" style="font-weight:700;color:#111;">Black</div><div style="width:64px;height:64px;border-radius:8px;background:#ececec;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:34px;border:3px solid #607d8b;">♟</div><div id="blackAccuracy" style="font-size:30px;font-weight:800;"></div></div>
+              </div>
+              <div style="height:1px;background:#cfd6ea;margin:12px 0;"></div>
+              <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:8px;align-items:center;"><div id="leftClassCol"></div><div id="classLegendCol" style="text-align:center;"></div><div id="rightClassCol" style="text-align:right;"></div></div>
+              <div style="text-align:center;opacity:.7;font-size:24px;line-height:1;margin:8px 0;color:#333;">⌄</div>
+              <div style="height:1px;background:#cfd6ea;margin:8px 0 12px;"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div><div style="margin-bottom:8px;">Game Rating: <span id="whiteGameRating" style="display:inline-block;background:#efefef;color:#111;padding:2px 8px;border-radius:6px;font-weight:800;">1500</span></div><div>Opening: <span id="whiteOpening"></span></div><div>Middlegame: <span id="whiteMiddle"></span></div><div>Endgame: <span id="whiteEnd"></span></div></div>
+                <div style="text-align:right;"><div style="margin-bottom:8px;">Game Rating: <span id="blackGameRating" style="display:inline-block;background:#2b2f39;padding:2px 8px;border-radius:6px;font-weight:800;">1450</span></div><div>Opening: <span id="blackOpening"></span></div><div>Middlegame: <span id="blackMiddle"></span></div><div>Endgame: <span id="blackEnd"></span></div></div>
+              </div>
+            </div>
+            <canvas id="evalGraphSummary" width="900" height="120" style="width:100%;height:120px;background:#171a31;border-radius:8px;margin-top:10px;"></canvas>
+            <div class="card" style="margin-top:10px;"><h4>Key Moments</h4><div id="keyMoments"></div></div>
+            <div style="display:flex;gap:10px;margin-top:10px;"><button id="startReviewBtn">Start Review</button><button id="skipBlundersBtn" class="secondary">Skip to Blunders</button></div>
+          </div>
+          <div id="reviewMain" style="display:none;flex:1;min-height:0;padding-top:10px;">
+            <div style="display:flex;gap:14px;height:100%;">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                <div style="display:flex;gap:8px;align-items:stretch;">
+                  <div id="evalBar" style="width:22px;height:min(74vw,66vh);max-height:700px;background:#111;border:1px solid #444;border-radius:6px;overflow:hidden;position:relative;"><div id="evalBarBlack" style="position:absolute;top:0;left:0;width:100%;height:50%;background:#222;"></div><div id="evalBarWhite" style="position:absolute;bottom:0;left:0;width:100%;height:50%;background:#f0d9b5;"></div></div>
+                  <div class="board-frame" style="width:min(74vw,66vh);height:min(74vw,66vh);"><div class="labels-files top-files" id="reviewTopFiles"></div><div class="labels-files bottom-files" id="reviewBottomFiles"></div><div class="labels-ranks left-ranks" id="reviewLeftRanks"></div><div class="labels-ranks right-ranks" id="reviewRightRanks"></div><div id="reviewBoard" class="board"></div></div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:10px;"><button id="firstMoveBtn">|◀ First</button><button id="prevMoveBtn" class="secondary">◀ Prev</button><button id="nextMoveBtn" class="secondary">▶ Next</button><button id="lastMoveBtn">Last ▶|</button></div>
+                <div class="card" style="margin-top:8px;width:min(74vw,66vh);"><div id="bestMoveText">Best move was:</div><div id="engineLineText" style="opacity:.86"></div></div>
+              </div>
+              <div style="width:300px;display:flex;flex-direction:column;gap:10px;min-height:0;"><canvas id="evalGraph" width="300" height="120" style="width:100%;height:120px;background:#171a31;border-radius:8px;"></canvas><div class="card"><h4>Classification Summary</h4><div id="classSummary"></div></div><div class="card" style="min-height:0;flex:1;"><h4>Moves</h4><div id="reviewMoveList" class="history" style="height:100%;"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <script src="mmbchess.js"></script>
+</body>
+</html>

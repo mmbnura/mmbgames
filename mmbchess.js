@@ -1,22 +1,3 @@
-// ─── Firebase Setup ───────────────────────────────────────
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore, collection, addDoc, getDocs, 
-         query, orderBy, limit }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup }
-  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-
-const firebaseConfig = {
-  // PASTE YOUR CONFIG HERE
-};
-
-const fbApp = initializeApp(firebaseConfig);
-const db = getFirestore(fbApp);
-const auth = getAuth(fbApp);
-
-const currentUser = JSON.parse(localStorage.getItem('mmb_google_user') || '{}');
-const isGoogleUser = currentUser?.uid && currentUser.authProvider !== 'guest';
-
     const APP_VERSION = '0.8';
     const PIECE_UNICODE = {
       wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
@@ -159,61 +140,34 @@ const isGoogleUser = currentUser?.uid && currentUser.authProvider !== 'guest';
       return `[Event "MMB Chess Casual Game"]\n[Site "Local Browser"]\n[Date "${date}"]\n[White "${game.playerName || 'User'}"]\n[Black "${game.aiName || 'Computer'}"]\n[Result "${resultTag}"]\n\n${moves.trim()} ${resultTag}`.trim();
     }
 
-async function loadSavedGamesFromFirestore() {
-  if (!isGoogleUser) return [];
-  try {
-    const gamesRef = collection(db, 'games', currentUser.uid, 'userGames');
-    const q = query(gamesRef, orderBy('playedAt', 'desc'), limit(100));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (err) {
-    console.warn('Firestore load failed:', err);
-    return [];
-  }
-}
-
-function loadSavedGames() {
-  // Sync local read — always works
-  try {
-    const raw = localStorage.getItem(GAMES_STORAGE_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch (_) { return []; }
-}
-
-async function saveGameToLocalStorage() {
-  const pgn = buildPGNFromCurrentGame();
-  if (!pgn) return;
-
-  const entry = {
-    id: `g_${Date.now()}`,
-    playedAt: new Date().toISOString(),
-    result: (() => {
-      if (!game?.gameOver) return 'Completed game';
-      if (game.gameOver.type === 'checkmate')
-        return game.gameOver.winner === game.playerColor ? 'User wins' : 'Computer wins';
-      return game.gameOver.message || 'Draw';
-    })(),
-    moves: game?.moveHistory?.length || 0,
-    pgn
-  };
-
-  // Always save locally first (instant, works offline)
-  const saved = loadSavedGames();
-  saved.unshift(entry);
-  localStorage.setItem(GAMES_STORAGE_KEY, JSON.stringify(saved.slice(0, 100)));
-
-  // If signed in, also save to Firestore
-  if (isGoogleUser) {
-    try {
-      const gamesRef = collection(db, 'games', currentUser.uid, 'userGames');
-      await addDoc(gamesRef, entry);
-      console.log('Game saved to Firestore ✓');
-    } catch (err) {
-      console.warn('Firestore save failed, using local only:', err);
+    function loadSavedGames() {
+      try {
+        const raw = localStorage.getItem(GAMES_STORAGE_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch (_) {
+        return [];
+      }
     }
-  }
-}
+
+    function saveGameToLocalStorage() {
+      const pgn = buildPGNFromCurrentGame();
+      if (!pgn) return;
+      const saved = loadSavedGames();
+      saved.unshift({
+        id: `g_${Date.now()}`,
+        playedAt: new Date().toISOString(),
+        result: (() => {
+          if (!game?.gameOver) return 'Completed game';
+          if (game.gameOver.type === 'checkmate') return game.gameOver.winner === game.playerColor ? 'User wins' : 'Computer wins';
+          return game.gameOver.message || 'Draw';
+        })(),
+        moves: game?.moveHistory?.length || 0,
+        pgn
+      });
+      localStorage.setItem(GAMES_STORAGE_KEY, JSON.stringify(saved.slice(0, 100)));
+    }
+
 
     async function exportGamePgn(gameEntry) {
       if (!gameEntry?.pgn) return;
@@ -253,65 +207,34 @@ async function saveGameToLocalStorage() {
       }
     }
 
-async function renderSavedGamesList() {
-  if (!analyzerGameListEl) return;
-  analyzerGameListEl.innerHTML = '<div style="opacity:.75;">Loading games...</div>';
+    function renderSavedGamesList() {
+      const games = loadSavedGames();
+      if (!analyzerGameListEl) return;
+      analyzerGameListEl.innerHTML = games.length ? '' : '<div style="opacity:.75;">No saved games yet.</div>';
+      games.forEach(g => {
+        const row = document.createElement('div');
+        row.className = 'game-list-row';
 
-  let games = [];
+        const btn = document.createElement('button');
+        btn.className = 'secondary game-open-btn';
+        const dt = new Date(g.playedAt);
+        btn.innerHTML = `<div>${dt.toLocaleString()}</div><div style="font-size:12px;opacity:.85;">${g.result} • ${g.moves} plies</div>`;
+        btn.addEventListener('click', () => prepareReviewFromPGN(g.pgn));
 
-  if (isGoogleUser) {
-    // Merge local + Firestore, deduplicate by playedAt
-    const [local, remote] = await Promise.all([
-      Promise.resolve(loadSavedGames()),
-      loadSavedGamesFromFirestore()
-    ]);
-    const seen = new Set();
-    games = [...remote, ...local].filter(g => {
-      if (seen.has(g.playedAt)) return false;
-      seen.add(g.playedAt);
-      return true;
-    });
-    // Sync merged list back to localStorage
-    localStorage.setItem(GAMES_STORAGE_KEY, JSON.stringify(games.slice(0, 100)));
-  } else {
-    games = loadSavedGames();
-  }
+        const shareBtn = document.createElement('button');
+        shareBtn.className = 'secondary game-share-btn';
+        shareBtn.textContent = 'Share';
+        shareBtn.title = 'Export this game as PGN';
+        shareBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          exportGamePgn(g);
+        });
 
-  analyzerGameListEl.innerHTML = games.length
-    ? '' : '<div style="opacity:.75;">No saved games yet.</div>';
-
-  games.forEach(g => {
-    const row = document.createElement('div');
-    row.className = 'game-list-row';
-    const btn = document.createElement('button');
-    btn.className = 'secondary game-open-btn';
-    const dt = new Date(g.playedAt);
-    btn.innerHTML = `<div>${dt.toLocaleString()}</div>
-      <div style="font-size:12px;opacity:.85;">${g.result} • ${g.moves} plies</div>`;
-    btn.addEventListener('click', () => prepareReviewFromPGN(g.pgn));
-    const shareBtn = document.createElement('button');
-    shareBtn.className = 'secondary game-share-btn';
-    shareBtn.textContent = 'Share';
-    shareBtn.addEventListener('click', e => { e.stopPropagation(); exportGamePgn(g); });
-    row.appendChild(btn);
-    row.appendChild(shareBtn);
-    analyzerGameListEl.appendChild(row);
-  });
-}
-```
-
----
-
-## Data Structure in Firestore
-```
-games/                          ← collection
-  {uid}/                        ← document per user
-    userGames/                  ← sub-collection
-      {auto-id}/                ← one document per game
-        playedAt: "2025-03-05"
-        result:   "User wins"
-        moves:    42
-        pgn:      "[Event...]"
+        row.appendChild(btn);
+        row.appendChild(shareBtn);
+        analyzerGameListEl.appendChild(row);
+      });
+    }
 
     function normalizeSan(san) {
       return san.replace(/[!?]+/g,'').replace(/[+#]+$/,'').trim();

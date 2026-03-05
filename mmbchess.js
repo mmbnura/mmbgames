@@ -72,6 +72,20 @@
     function byId(id){ return document.getElementById(id); }
     function on(id, event, handler){ const el = byId(id); if (el) el.addEventListener(event, handler); }
     function appContainer(){ return document.querySelector('.app'); }
+
+    function renderLoginStatus() {
+      const loginEl = byId('loginStatusText');
+      if (!loginEl) return;
+      let profile = null;
+      try {
+        profile = JSON.parse(localStorage.getItem('mmb_google_user') || 'null');
+      } catch (_) {
+        profile = null;
+      }
+      const name = (profile?.name || '').trim() || 'Guest';
+      const provider = profile?.authProvider === 'guest' || !profile?.email ? 'Guest' : 'Google';
+      loginEl.textContent = `Signed in: ${name} (${provider})`;
+    }
     function inferReviewSides(whiteName, blackName) {
       const userRe = /(user|you|player|human)/i;
       const aiRe = /(computer|ai|bot|engine)/i;
@@ -1495,6 +1509,7 @@ function renderReviewBoard(index) {
 
     const v = byId('versionFooter');
     if (v) v.textContent = `MMB Chess v${APP_VERSION}`;
+    renderLoginStatus();
     renderSideAssignment();
     buildLabels();
     if (difficultyListEl) setupDifficultyModal();

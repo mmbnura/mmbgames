@@ -246,9 +246,26 @@
     .brand-logo .text { color: #f5f7ff; }
     .brand-logo .sub { color: #8fd7ff; font-size: 12px; margin-left: 6px; }
 
+    .brand-login-status {
+      position: fixed;
+      top: 64px;
+      left: 16px;
+      z-index: 69;
+      color: #d6dcff;
+      background: rgba(18, 22, 45, .92);
+      border: 1px solid #3c4478;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 12px;
+      max-width: min(72vw, 280px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .brand-menu {
       position: fixed;
-      top: 62px;
+      top: 92px;
       left: 16px;
       z-index: 69;
       display: flex;
@@ -356,6 +373,7 @@
 
     @media (max-width: 760px) {
       .brand-logo,
+      .brand-login-status,
       .brand-menu,
       .top-actions {
         position: static;
@@ -365,6 +383,7 @@
         padding: 8px;
       }
       .brand-logo,
+      .brand-login-status,
       .brand-menu,
       .top-actions {
         margin: 0 0 8px;

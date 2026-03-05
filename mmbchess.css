@@ -146,6 +146,8 @@
       background: #3b62e7;
     }
     button.secondary { background: #4a4f74; }
+    button.danger { background: #9b2c2c; border: 1px solid #bf3a3a; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
     .turn-indicator {
       display: inline-flex;
       align-items: center;

@@ -69,6 +69,7 @@
       <div id="googleSignInButton"></div>
       <div id="configError" class="error"></div>
       <div class="hint">Need setup help? Provide a Google OAuth client ID and set it in <code>window.GOOGLE_CLIENT_ID</code> before this script runs.</div>
+      <button id="continueGuestBtn" style="margin-top:10px;width:100%;border:none;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;color:#fff;background:#4a4f74;">Continue without Google sign-in</button>
     </div>
 
     <div class="footer">MMB Chess v0.8</div>
@@ -77,8 +78,22 @@
   <script>
     (function(){
       const storageKey = 'mmb_google_user';
-      const clientId = window.GOOGLE_CLIENT_ID || localStorage.getItem('mmb_google_client_id') || '';
+      const DEFAULT_GOOGLE_CLIENT_ID = '613800272186-8doglal06v7371nvitg57gr6750k03jr.apps.googleusercontent.com';
+      const clientId = window.GOOGLE_CLIENT_ID || localStorage.getItem('mmb_google_client_id') || DEFAULT_GOOGLE_CLIENT_ID;
       const errorEl = document.getElementById('configError');
+      const guestBtn = document.getElementById('continueGuestBtn');
+
+
+      guestBtn?.addEventListener('click', () => {
+        localStorage.setItem(storageKey, JSON.stringify({
+          email: '',
+          name: 'Guest',
+          picture: '',
+          signedInAt: new Date().toISOString(),
+          authProvider: 'guest'
+        }));
+        window.location.href = 'chess.html';
+      });
 
       function decodeJwtPayload(jwt) {
         const payload = jwt.split('.')[1];
@@ -105,9 +120,8 @@
 
       if (!clientId) {
         errorEl.style.display = 'block';
-        errorEl.textContent = 'Google SSO is not configured yet. Set GOOGLE_CLIENT_ID to enable sign-in.';
-        return;
-      }
+        errorEl.textContent = 'Google SSO is not configured yet. You can continue as guest or set GOOGLE_CLIENT_ID to enable sign-in.';
+      } else {
 
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
@@ -129,6 +143,7 @@
         errorEl.textContent = 'Could not load Google Sign-In SDK. Check internet/network policies.';
       };
       document.head.appendChild(script);
+      }
     })();
   </script>
 </body>

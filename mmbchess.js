@@ -121,7 +121,7 @@
 
     function gameResultTag(gameResultObj) {
       if (!gameResultObj) return '*';
-      if (gameResultObj.type === 'checkmate') return gameResultObj.winner === 'w' ? '1-0' : '0-1';
+      if (gameResultObj.type === 'checkmate' || gameResultObj.type === 'resign') return gameResultObj.winner === 'w' ? '1-0' : '0-1';
       return '1/2-1/2';
     }
 
@@ -461,6 +461,8 @@
       if (whiteTimerEl) whiteTimerEl.textContent = '00:00';
       if (blackTimerEl) blackTimerEl.textContent = '00:00';
       if (historyEl) historyEl.innerHTML = '<div class="hdr">#</div><div class="hdr">White</div><div class="hdr">Black</div>';
+      const resignBtn = byId('resignBtn');
+      if (resignBtn) resignBtn.disabled = true;
     }
 function newGame(difficultyKey) {
       const diff = DIFFICULTIES.find(d => d.key === difficultyKey) || DIFFICULTIES[1];
@@ -1000,6 +1002,8 @@ function newGame(difficultyKey) {
       blackCapturedEl.textContent = game.capturedBlack.map(p => PIECE_UNICODE[p]).join(' ');
       whiteTimerEl.textContent = formatClock(game.whiteTimeMs || 0);
       blackTimerEl.textContent = formatClock(game.blackTimeMs || 0);
+      const resignBtn = byId('resignBtn');
+      if (resignBtn) resignBtn.disabled = !game || !!game.gameOver;
       renderHistory();
     }
     function renderHistory() {
@@ -1050,9 +1054,15 @@ function newGame(difficultyKey) {
       render();
       maybeAIMove();
     }
+    function resignGame() {
+      if (!game || game.gameOver) return;
+      const winner = game.aiColor || enemy(game.playerColor || 'w');
+      finishGame({ type: 'resign', winner });
+    }
     function finishGame(result) {
       let msg = '';
       if (result.type === 'checkmate') msg = `Checkmate — ${result.winner === 'w' ? 'White' : 'Black'} wins`;
+      if (result.type === 'resign') msg = `${result.winner === 'w' ? 'White' : 'Black'} wins by resignation`;
       if (result.type === 'stalemate') msg = 'Stalemate — Draw';
       if (result.type === 'insufficient') msg = 'Draw by insufficient material';
       if (result.type === 'fifty') msg = 'Draw by 50-move rule';
@@ -1436,6 +1446,10 @@ function renderReviewBoard(index) {
     on('newGameBtn','click', () => difficultyModal?.classList.add('show'));
     on('newGameTopBtn','click', () => difficultyModal?.classList.add('show'));
     on('changeDifficultyBtn','click', () => difficultyModal?.classList.add('show'));
+    on('resignBtn','click', () => {
+      if (!game || game.gameOver) return;
+      if (confirm('Are you sure you want to resign this game?')) resignGame();
+    });
     on('openAnalyzerFromMenuBtn','click', openAnalyzerPage);
     on('playAgainBtn','click', () => {
       gameOverModal?.classList.remove('show');

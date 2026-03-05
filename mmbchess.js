@@ -434,6 +434,34 @@
         blackTimerEl.textContent = formatClock(game.blackTimeMs);
       }, 200);
     }
+    function renderInitialBoard() {
+      if (!boardEl) return;
+      const preview = createInitialBoard();
+      boardEl.innerHTML = '';
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const sq = document.createElement('div');
+          sq.className = `square ${(r+c)%2===0?'light':'dark'}`;
+          const piece = preview[r][c];
+          if (piece) {
+            const sp = document.createElement('span');
+            sp.className = `piece ${colorOf(piece)==='w'?'white':'black'}`;
+            sp.textContent = PIECE_UNICODE[piece];
+            sq.appendChild(sp);
+          }
+          boardEl.appendChild(sq);
+        }
+      }
+      if (turnDotEl) turnDotEl.style.background = '#fff';
+      if (turnTextEl) turnTextEl.textContent = 'Press New Game to start';
+      if (statusTextEl) statusTextEl.textContent = 'Ready. Start a new game to begin.';
+      if (difficultyTextEl) difficultyTextEl.textContent = 'Not started';
+      if (whiteCapturedEl) whiteCapturedEl.textContent = '';
+      if (blackCapturedEl) blackCapturedEl.textContent = '';
+      if (whiteTimerEl) whiteTimerEl.textContent = '00:00';
+      if (blackTimerEl) blackTimerEl.textContent = '00:00';
+      if (historyEl) historyEl.innerHTML = '<div class="hdr">#</div><div class="hdr">White</div><div class="hdr">Black</div>';
+    }
 function newGame(difficultyKey) {
       const diff = DIFFICULTIES.find(d => d.key === difficultyKey) || DIFFICULTIES[1];
       game = {
@@ -1245,9 +1273,9 @@ function newGame(difficultyKey) {
         { name:'Miss', icon:'✖', iconBg:'#9b59b6', labels:['Miss'], color:'#d7a4ff' },
         { name:'Blunder', icon:'??', iconBg:'#ca3431', labels:['Blunder'], color:'#ff615b' }
       ];
-      document.getElementById('leftClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span>${r.name}</span><span style="font-weight:700;color:${r.color};">${countBy(bySide.player,r.labels)}</span></div>`).join('');
-      document.getElementById('classLegendCol').innerHTML = rows.map(r => `<div style="margin:7px 0;"><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${r.iconBg};font-weight:800;">${r.icon}</span></div>`).join('');
-      document.getElementById('rightClassCol').innerHTML = rows.map(r => `<div style="display:flex;justify-content:space-between;margin:8px 0;"><span style="font-weight:700;color:${r.color};">${countBy(bySide.ai,r.labels)}</span><span style="opacity:.9">${r.name}</span></div>`).join('');
+      document.getElementById('leftClassCol').innerHTML = rows.map(r => `<div class="class-row"><span>${r.name}</span><span style="font-weight:700;color:${r.color};">${countBy(bySide.player,r.labels)}</span></div>`).join('');
+      document.getElementById('classLegendCol').innerHTML = rows.map(r => `<div class="class-icon-wrap"><span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:${r.iconBg};font-weight:800;">${r.icon}</span></div>`).join('');
+      document.getElementById('rightClassCol').innerHTML = rows.map(r => `<div class="class-row"><span style="font-weight:700;color:${r.color};">${countBy(bySide.ai,r.labels)}</span><span style="opacity:.9">${r.name}</span></div>`).join('');
 
       const rating = (acc, who) => Math.max(400, Math.min(2800, Math.round(500 + acc*18 - countBy(bySide[who],['Blunder'])*70 - countBy(bySide[who],['Mistake'])*25)));
       document.getElementById('whiteGameRating').textContent = rating(playerAcc, 'player');
@@ -1406,6 +1434,7 @@ function renderReviewBoard(index) {
     }
 
     on('newGameBtn','click', () => difficultyModal?.classList.add('show'));
+    on('newGameTopBtn','click', () => difficultyModal?.classList.add('show'));
     on('changeDifficultyBtn','click', () => difficultyModal?.classList.add('show'));
     on('openAnalyzerFromMenuBtn','click', openAnalyzerPage);
     on('playAgainBtn','click', () => {
@@ -1456,4 +1485,5 @@ function renderReviewBoard(index) {
     buildLabels();
     if (difficultyListEl) setupDifficultyModal();
     renderSavedGamesList();
+    renderInitialBoard();
   

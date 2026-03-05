@@ -14,7 +14,7 @@
   <div class="version-footer" id="versionFooter">MMB Chess v0.8</div>
   <div id="reviewScreen" class="overlay show">
     <div class="modal" style="width:min(99vw,1380px);height:min(97vh,940px);display:flex;flex-direction:column;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
         <h2 style="margin:0;">Game Analyzer</h2>
         <button id="backToMenuBtn" class="secondary">← Back to Menu</button>
       </div>
@@ -43,7 +43,7 @@
                 <div><div id="blackPlayerName" style="font-weight:700;color:#111;">Black</div><div style="width:64px;height:64px;border-radius:8px;background:#ececec;margin:6px auto;display:flex;align-items:center;justify-content:center;font-size:34px;border:3px solid #607d8b;">♟</div><div id="blackAccuracy" style="font-size:30px;font-weight:800;"></div></div>
               </div>
               <div style="height:1px;background:#cfd6ea;margin:12px 0;"></div>
-              <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:8px;align-items:center;"><div id="leftClassCol"></div><div id="classLegendCol" style="text-align:center;"></div><div id="rightClassCol" style="text-align:right;"></div></div>
+              <div class="class-summary-grid"><div id="leftClassCol" class="class-col"></div><div id="classLegendCol" class="class-icon-col"></div><div id="rightClassCol" class="class-col"></div></div>
               <div style="text-align:center;opacity:.7;font-size:24px;line-height:1;margin:8px 0;color:#333;">⌄</div>
               <div style="height:1px;background:#cfd6ea;margin:8px 0 12px;"></div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">

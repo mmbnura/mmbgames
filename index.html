@@ -68,6 +68,7 @@
     <div class="signin-wrap">
       <div id="googleSignInButton"></div>
       <div id="configError" class="error"></div>
+      <div id="signInStatus" class="hint" style="display:none;margin-top:8px;"></div>
       <div class="hint">Need setup help? Provide a Google OAuth client ID and set it in <code>window.GOOGLE_CLIENT_ID</code> before this script runs.</div>
       <button id="continueGuestBtn" style="margin-top:10px;width:100%;border:none;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;color:#fff;background:#4a4f74;">Continue without Google sign-in</button>
     </div>
@@ -81,6 +82,7 @@
       const DEFAULT_GOOGLE_CLIENT_ID = '613800272186-8doglal06v7371nvitg57gr6750k03jr.apps.googleusercontent.com';
       const clientId = window.GOOGLE_CLIENT_ID || localStorage.getItem('mmb_google_client_id') || DEFAULT_GOOGLE_CLIENT_ID;
       const errorEl = document.getElementById('configError');
+      const statusEl = document.getElementById('signInStatus');
       const guestBtn = document.getElementById('continueGuestBtn');
 
 
@@ -94,6 +96,13 @@
         }));
         window.location.href = 'chess.html';
       });
+
+
+      function showStatus(msg) {
+        if (!statusEl) return;
+        statusEl.style.display = 'block';
+        statusEl.textContent = msg;
+      }
 
       function decodeJwtPayload(jwt) {
         const payload = jwt.split('.')[1];
@@ -128,15 +137,27 @@
       script.async = true;
       script.defer = true;
       script.onload = function() {
-        google.accounts.id.initialize({
-          client_id: clientId,
-          callback: onCredentialResponse,
-          ux_mode: 'popup'
-        });
-        google.accounts.id.renderButton(
-          document.getElementById('googleSignInButton'),
-          { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', width: 320 }
-        );
+        try {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: onCredentialResponse,
+            ux_mode: 'popup'
+          });
+          google.accounts.id.renderButton(
+            document.getElementById('googleSignInButton'),
+            { theme: 'outline', size: 'large', shape: 'pill', text: 'signin_with', width: 320 }
+          );
+          google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed && notification.isNotDisplayed()) {
+              showStatus(`Google Sign-In is unavailable (${notification.getNotDisplayedReason?.() || 'not displayed'}). You can continue as guest.`);
+            } else if (notification.isSkippedMoment && notification.isSkippedMoment()) {
+              showStatus('Google Sign-In prompt was skipped. You can continue as guest.');
+            }
+          });
+        } catch (e) {
+          errorEl.style.display = 'block';
+          errorEl.textContent = 'Google Sign-In initialization failed. You can continue as guest.';
+        }
       };
       script.onerror = function() {
         errorEl.style.display = 'block';

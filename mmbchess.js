@@ -183,6 +183,35 @@
     }
 
 
+    function openPgnShareModal(gameEntry) {
+      if (!gameEntry?.pgn) return;
+      const modal = byId('pgnShareModal');
+      const txt = byId('pgnShareText');
+      const nativeBtn = byId('nativeSharePgnBtn');
+      if (txt) txt.value = gameEntry.pgn;
+      if (nativeBtn) nativeBtn.style.display = navigator.share ? '' : 'none';
+      if (modal) modal.classList.add('show');
+      if (txt) txt.focus();
+      const copyBtn = byId('copyPgnBtn');
+      if (copyBtn) copyBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(txt?.value || '');
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => copyBtn.textContent = 'Copy PGN', 1000);
+        } catch (_) {
+          alert('Unable to copy PGN on this browser.');
+        }
+      };
+      if (nativeBtn) nativeBtn.onclick = async () => {
+        if (!navigator.share) return;
+        try {
+          await navigator.share({ title: 'MMB Chess PGN', text: txt?.value || '' });
+        } catch (_) {}
+      };
+      const closeBtn = byId('closePgnShareBtn');
+      if (closeBtn) closeBtn.onclick = () => modal?.classList.remove('show');
+    }
+
     async function exportGamePgn(gameEntry) {
       if (!gameEntry?.pgn) return;
       const dt = new Date(gameEntry.playedAt || Date.now());
@@ -238,14 +267,25 @@
         const shareBtn = document.createElement('button');
         shareBtn.className = 'secondary game-share-btn';
         shareBtn.textContent = 'Share';
-        shareBtn.title = 'Export this game as PGN';
+        shareBtn.title = 'View and copy this game PGN';
         shareBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openPgnShareModal(g);
+        });
+
+        const quickShareBtn = document.createElement('button');
+        quickShareBtn.className = 'secondary game-share-btn';
+        quickShareBtn.textContent = 'Share App';
+        quickShareBtn.title = 'Directly share this PGN to another app';
+        if (!navigator.share) quickShareBtn.style.display = 'none';
+        quickShareBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           exportGamePgn(g);
         });
 
         row.appendChild(btn);
         row.appendChild(shareBtn);
+        row.appendChild(quickShareBtn);
         analyzerGameListEl.appendChild(row);
       });
     }
@@ -1174,7 +1214,7 @@ function newGame(difficultyKey) {
     }
     function classifyMove(cpLoss) {
       if (cpLoss <= 10) return { label: 'Best', icon: '★', color: '#5c8a3c' };
-      if (cpLoss <= 30) return { label: 'Excellent', icon: '✓', color: '#96bc4b' };
+      if (cpLoss <= 30) return { label: 'Excellent', icon: '✨', color: '#96bc4b' };
       if (cpLoss <= 100) return { label: 'Good', icon: '•', color: '#d6dbe8' };
       if (cpLoss <= 200) return { label: 'Inaccuracy', icon: '!', color: '#f0c15b' };
       if (cpLoss <= 400) return { label: 'Mistake', icon: '?', color: '#e07b37' };
@@ -1271,7 +1311,7 @@ function newGame(difficultyKey) {
         const best = gameReviewData.bestEvals[i];
         const cpLoss = mover === 'w' ? Math.max(0, best - actual) : Math.max(0, actual - best);
         let cls = classifyMove(cpLoss);
-        if (cls.label === 'Best' && gameReviewData.plies[i].captured && !gameReviewData.bestMoves[i]?.capture) cls = { label:'Brilliant', icon:'★★', color:'#1baca6' };
+        if (cls.label === 'Best' && gameReviewData.plies[i].captured && !gameReviewData.bestMoves[i]?.capture) cls = { label:'Brilliant', icon:'💎', color:'#1baca6' };
         classifs.push({ ...cls, cpLoss, moveIndex: i, mover });
         sideAcc[mover].push(accuracyFromLoss(cpLoss));
       }
@@ -1291,7 +1331,7 @@ function newGame(difficultyKey) {
       const countBy = (arr, labels) => arr.filter(c => labels.includes(c.label)).length;
       const rows = [
         { name:'Brilliant', icon:'‼', iconBg:'#1baca6', labels:['Brilliant'], color:'#21e6d8' },
-        { name:'Great', icon:'!', iconBg:'#4f7fb6', labels:['Excellent'], color:'#9cc7ff' },
+        { name:'Great', icon:'✨', iconBg:'#4f7fb6', labels:['Excellent'], color:'#9cc7ff' },
         { name:'Best', icon:'★', iconBg:'#7bb342', labels:['Best'], color:'#7dff84' },
         { name:'Mistake', icon:'?', iconBg:'#e07b37', labels:['Mistake','Inaccuracy'], color:'#ff9f6a' },
         { name:'Miss', icon:'✖', iconBg:'#9b59b6', labels:['Miss'], color:'#d7a4ff' },
@@ -1338,6 +1378,38 @@ function newGame(difficultyKey) {
         startReview(Math.max(1, idx+1));
       }
     }
+function drawReviewArrow(index) {
+      const overlay = byId('reviewArrowOverlay');
+      if (!overlay) return;
+      overlay.innerHTML = '';
+      if (index <= 0) return;
+      const ply = gameReviewData?.plies?.[index-1];
+      if (!ply) return;
+      const size = reviewBoardEl?.clientWidth || 0;
+      if (!size) return;
+      overlay.setAttribute('viewBox', `0 0 ${size} ${size}`);
+      const sq = size / 8;
+      const x1 = ply.fromC * sq + sq/2;
+      const y1 = ply.fromR * sq + sq/2;
+      const x2 = ply.toC * sq + sq/2;
+      const y2 = ply.toR * sq + sq/2;
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+      marker.setAttribute('id', 'arrowHead');
+      marker.setAttribute('markerWidth', '8'); marker.setAttribute('markerHeight', '8');
+      marker.setAttribute('refX', '6'); marker.setAttribute('refY', '3'); marker.setAttribute('orient', 'auto');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M0,0 L0,6 L6,3 z');
+      path.setAttribute('fill', '#5ad1ff');
+      marker.appendChild(path); defs.appendChild(marker); overlay.appendChild(defs);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('stroke', '#5ad1ff'); line.setAttribute('stroke-width', Math.max(4, sq*0.14));
+      line.setAttribute('stroke-linecap', 'round'); line.setAttribute('marker-end', 'url(#arrowHead)');
+      line.setAttribute('opacity', '0.9');
+      overlay.appendChild(line);
+    }
+
 function renderReviewBoard(index) {
       const board = index === 0 ? createInitialBoard() : gameReviewData.plies[index-1].boardAfter;
       reviewBoardEl.innerHTML = '';
@@ -1381,6 +1453,7 @@ function renderReviewBoard(index) {
       reviewState.index = Math.max(0, Math.min(gameReviewData.plies.length, index));
       const i = reviewState.index;
       renderReviewBoard(i);
+      drawReviewArrow(i);
       renderReviewMoveList(i);
       drawEvalGraph('evalGraph', Math.max(0, i-1));
       const cp = i>0 ? gameReviewData.evals[i-1] : 0;
@@ -1417,10 +1490,11 @@ function renderReviewBoard(index) {
         const mover = idx % 2 === 0 ? 'w' : 'b';
         byColor[mover][c.label] = (byColor[mover][c.label] || 0) + 1;
       });
+      const labelIcons = { Brilliant:'💎', Excellent:'✨', Best:'★', Good:'•', Inaccuracy:'!', Mistake:'?', Blunder:'??', Miss:'✖' };
       const formatCounts = (counts) => {
         const rows = classOrder
           .filter(label => (counts[label] || 0) > 0)
-          .map(label => `${label}: ${counts[label]}`);
+          .map(label => `${labelIcons[label] || ''} ${label}: ${counts[label]}`.trim());
         return rows.length ? rows.join('<br>') : 'No classified moves yet.';
       };
       document.getElementById('classSummary').innerHTML = `

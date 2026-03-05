@@ -60,7 +60,7 @@
               <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
                 <div style="display:flex;gap:8px;align-items:stretch;">
                   <div id="evalBar" style="width:22px;height:min(74vw,66vh);max-height:700px;background:#111;border:1px solid #444;border-radius:6px;overflow:hidden;position:relative;"><div id="evalBarBlack" style="position:absolute;top:0;left:0;width:100%;height:50%;background:#222;"></div><div id="evalBarWhite" style="position:absolute;bottom:0;left:0;width:100%;height:50%;background:#f0d9b5;"></div></div>
-                  <div class="board-frame" style="width:min(74vw,66vh);height:min(74vw,66vh);"><div class="labels-files top-files" id="reviewTopFiles"></div><div class="labels-files bottom-files" id="reviewBottomFiles"></div><div class="labels-ranks left-ranks" id="reviewLeftRanks"></div><div class="labels-ranks right-ranks" id="reviewRightRanks"></div><div id="reviewBoard" class="board"></div></div>
+                  <div class="board-frame" style="width:min(74vw,66vh);height:min(74vw,66vh);"><div class="labels-files top-files" id="reviewTopFiles"></div><div class="labels-files bottom-files" id="reviewBottomFiles"></div><div class="labels-ranks left-ranks" id="reviewLeftRanks"></div><div class="labels-ranks right-ranks" id="reviewRightRanks"></div><div id="reviewBoard" class="board"></div><svg id="reviewArrowOverlay" class="review-arrow-overlay" viewBox="0 0 100 100" preserveAspectRatio="none"></svg></div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:10px;"><button id="firstMoveBtn">|◀ First</button><button id="prevMoveBtn" class="secondary">◀ Prev</button><button id="nextMoveBtn" class="secondary">▶ Next</button><button id="lastMoveBtn">Last ▶|</button></div>
                 <div class="card" style="margin-top:8px;width:min(74vw,66vh);"><div id="bestMoveText">Best move was:</div><div id="engineLineText" style="opacity:.86"></div></div>
@@ -72,6 +72,17 @@
       </div>
     </div>
   </div></div>
+  <div id="pgnShareModal" class="overlay">
+    <div class="modal" style="width:min(95vw,760px);">
+      <h2>Share PGN</h2>
+      <textarea id="pgnShareText" style="width:100%;min-height:220px;background:#111630;color:#dce3ff;border:1px solid #38406f;border-radius:8px;padding:8px;"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button id="copyPgnBtn">Copy PGN</button>
+        <button id="nativeSharePgnBtn" class="secondary">Share to Apps</button>
+        <button id="closePgnShareBtn" class="secondary">Close</button>
+      </div>
+    </div>
+  </div>
   <script src="mmbchess.js"></script>
 </body>
 </html>

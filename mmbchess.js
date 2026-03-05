@@ -1,3 +1,22 @@
+// ─── Firebase Setup ───────────────────────────────────────
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, addDoc, getDocs, 
+         query, orderBy, limit }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, GoogleAuthProvider, signInWithPopup }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+const firebaseConfig = {
+  // PASTE YOUR CONFIG HERE
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const auth = getAuth(fbApp);
+
+const currentUser = JSON.parse(localStorage.getItem('mmb_google_user') || '{}');
+const isGoogleUser = currentUser?.uid && currentUser.authProvider !== 'guest';
+
     const APP_VERSION = '0.8';
     const PIECE_UNICODE = {
       wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
